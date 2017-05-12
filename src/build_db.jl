@@ -5,8 +5,9 @@ using Logging
 
 import GZip
 function complement(orig_set, m)
-  array = sort(collect(orig_set))
-  c_set = Set{Int16}()
+  array = collect(orig_set)
+  c_set = OrderedSet{Int16}()
+
   expected::Int16 = 1
   i::Int16 = 1
   l::Int16 = length(array)
@@ -44,7 +45,7 @@ end
 
 function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String)
   record = FASTASeqRecord{BioSequence{DNAAlphabet{2}}}()
-  result = DefaultDict{DNAKmer{k}, Set{Int16}}(() -> Set{Int16}())
+  kmer_class = DefaultDict{DNAKmer{k}, OrderedSet{Int16}}(() -> OrderedSet{Int16}())
   length_alleles::Int16 = 0
   open(FASTAReader{BioSequence{DNAAlphabet{2}}}, fastafile) do reader
     allele_idx::Int16 = 1
@@ -53,12 +54,11 @@ function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String)
           allele_idx = parse(Int16,split(record.name, "_")[2])
           length_alleles += 1
           for (pos, kmer) in each(DNAKmer{k}, record.seq)
-            push!(result[canonical(kmer)], allele_idx)
+            push!(kmer_class[canonical(kmer)], allele_idx)
           end
       end
   end
-  # TODO: filter uninformative alleles: (present in all alleles)
-  return result, length_alleles
+  return kmer_class, length_alleles
 end
 
 function parse_commandline()
@@ -89,7 +89,7 @@ function main()
   args = parse_commandline()
   k::Int8 = args["k"]
   results = []
-  loci = Array{String,1}()
+  loci = String[]
   info("Opening FASTA files ... ")
   for file in args["files"]
     locus::String = splitext(basename(file))[1]
@@ -100,7 +100,7 @@ function main()
   end
   # Combine results:
   info("Combining results for each locus ...")
-  kmer_classification = DefaultDict{DNAKmer{k}, Vector{Tuple{String, Int8, Set{Int16}}}}(() -> Vector{Tuple{String, Int8, Set{Int16}}}())
+  kmer_classification = DefaultDict{DNAKmer{k}, Vector{Tuple{String, Int8, OrderedSet{Int16}}}}(() -> Vector{Tuple{String, Int8, OrderedSet{Int16}}}())
   for (locus, kmer_class, n_alleles) in results
     half = n_alleles/2
     for (kmer, allele_set) in kmer_class
@@ -109,7 +109,7 @@ function main()
         continue
       elseif l_as > half
         allele_set = complement(allele_set, n_alleles)
-        if length(allele_set) == 0
+        if isempty(allele_set)
           println("Alelle set empty!!!!")
           exit()
         end
@@ -120,6 +120,7 @@ function main()
     end
   end
   info("Saving DB ...")
+  # exit()
   save_db(DNAKmer{k}, kmer_classification, loci, args["o"])
 
 
