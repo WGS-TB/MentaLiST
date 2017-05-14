@@ -5,14 +5,20 @@ import JLD
 import Blosc
 
 function complement(orig_set, m)
-  array = collect(orig_set)
-  c_set = OrderedSet{Int16}()
+  # array = collect(orig_set)
+  # c_set = OrderedSet{Int16}()
+  array = orig_set
+  c_set = Int16[]
 
   expected::Int16 = 1
   i::Int16 = 1
   l::Int16 = length(array)
   while i <= l
-    diff::Int16 = array[i] - expected
+    diff = array[i] - expected
+    if diff < 0
+      i += 1
+      continue
+    end
     while diff > 0
       push!(c_set, expected)
       expected += 1
@@ -46,6 +52,9 @@ function combine_loci_classification(k, results, loci)
         continue
       elseif l_as > half
         allele_set = complement(allele_set, n_alleles)
+        if isempty(allele_set)
+          continue
+        end
         weight = -1
       else
         weight = 1
@@ -76,7 +85,8 @@ end
 
 function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String)
   record = FASTASeqRecord{BioSequence{DNAAlphabet{2}}}()
-  kmer_class = DefaultDict{DNAKmer{k}, OrderedSet{Int16}}(() -> OrderedSet{Int16}())
+  # kmer_class = DefaultDict{DNAKmer{k}, OrderedSet{Int16}}(() -> OrderedSet{Int16}())
+  kmer_class = DefaultDict{DNAKmer{k}, Vector{Int16}}(() -> Int16[])
   length_alleles::Int16 = 0
   open(FASTAReader{BioSequence{DNAAlphabet{2}}}, fastafile) do reader
     allele_idx::Int16 = 1
@@ -139,38 +149,4 @@ function open_db(filename)
     end
   end
   return kmer_classification, loci, k
-end
-
-
-function save_db_old(k, kmer_db, loci, filename)
-  GZip.open("$filename.gz", "w") do f
-  # open(filename, "w") do f
-    write(f, "$k\n")
-    loci = join(loci,",")
-    write(f, "$loci\n")
-    for (kmer, v) in kmer_db
-      for (locus, val, alleles) in v
-        alleles = join(alleles,",")
-        write(f, "$kmer\t$locus\t$val\t$alleles\n")
-      end
-    end
-  end
-end
-
-
-function open_db_old{k}(::Type{DNAKmer{k}}, filename)
-
-  f = GZip.open("$filename")
-  k_from_file = parse(Int8, readline(f))
-  if k_from_file != k
-    Logging.critical("Wrong kmer size, DB has $k !")
-  end
-  kmer_db = DefaultDict{DNAKmer{k}, Vector{Tuple{String, Int8, Vector{Int16}}}}(() -> Vector{Tuple{String, Int8, Vector{Int16}}}())
-  loci = split(strip(readline(f)), ",")
-  for ln in eachline(f)
-    kmer, locus, val, alleles = split(ln, "\t")
-    push!(kmer_db[DNAKmer{k}(kmer)], (locus, parse(Int8, val), map(x->parse(Int16,x), split(alleles,","))))
-  end
-  close(f)
-  return kmer_db, loci
 end
