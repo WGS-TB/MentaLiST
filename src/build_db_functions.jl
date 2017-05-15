@@ -44,7 +44,10 @@ function combine_loci_classification(k, results, loci)
   l2int = Dict{String,Int16}(locus => idx for (idx, locus) in enumerate(loci))
   weight::Int8 = 0
 
-  for (locus, kmer_class, n_alleles) in results
+  for (locus, kmer_class, idx_to_allele_id) in results
+    n_alleles = length(idx_to_allele_id)
+    # check if the relabeling is not sorted, which means we need to relabel the alleles;
+    relabel = !issorted(idx_to_allele_id)
     half = n_alleles/2
     n_kmers_in_class = 0
     for (kmer, allele_set) in kmer_class
@@ -59,6 +62,10 @@ function combine_loci_classification(k, results, loci)
         weight = -1
       else
         weight = 1
+      end
+      # relabel the allele_set if needed:
+      if relabel
+        allele_set = [idx_to_allele_id[i] for i in allele_set]
       end
       push!(kmer_list, "$kmer")
       push!(weight_list, weight)
@@ -79,8 +86,8 @@ function kmer_class_for_each_locus(k::Int8, files::Vector{String})
   for file in files
     locus::String = splitext(basename(file))[1]
     push!(loci, locus)
-    kmer_class, n_alleles = kmer_class_for_locus(DNAKmer{k}, file)
-    push!(results, (locus,kmer_class, n_alleles))
+    kmer_class, idx_to_allele_id = kmer_class_for_locus(DNAKmer{k}, file)
+    push!(results, (locus,kmer_class, idx_to_allele_id))
   end
   return results, loci
 end
@@ -89,19 +96,22 @@ function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String)
   record = FASTASeqRecord{BioSequence{DNAAlphabet{2}}}()
   # kmer_class = DefaultDict{DNAKmer{k}, OrderedSet{Int16}}(() -> OrderedSet{Int16}())
   kmer_class = DefaultDict{DNAKmer{k}, Vector{Int16}}(() -> Int16[])
-  length_alleles::Int16 = 0
+  idx_to_allele_id = Int16[]
+  allele_idx::Int16 = 1
   open(FASTAReader{BioSequence{DNAAlphabet{2}}}, fastafile) do reader
-    allele_idx::Int16 = 1
       while !eof(reader)
           read!(reader, record)
-          allele_idx = parse(Int16,split(record.name, "_")[2])
-          length_alleles += 1
           for (pos, kmer) in each(DNAKmer{k}, record.seq)
             push!(kmer_class[canonical(kmer)], allele_idx)
           end
+          # update idx; the counter idx is incremental (1,2, ...) because we need the array sorted.
+          # But this is not always sin the allele ordering, so we have to save the original id to restore it later;
+          allele_id = parse(Int16,split(record.name, "_")[2])
+          push!(idx_to_allele_id, allele_id)
+          allele_idx += 1
       end
   end
-  return kmer_class, length_alleles
+  return kmer_class, idx_to_allele_id
 end
 
 function save_db(k, kmer_db, loci, filename)
