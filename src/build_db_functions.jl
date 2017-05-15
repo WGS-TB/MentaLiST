@@ -4,7 +4,7 @@ import GZip
 import JLD
 import Blosc
 
-function complement(orig_set, m)
+function complement_alleles(orig_set, m)
   # array = collect(orig_set)
   # c_set = OrderedSet{Int16}()
   array = orig_set
@@ -39,6 +39,7 @@ function combine_loci_classification(k, results, loci)
   loci_list = Int[]
   weight_list = Int8[]
   alleles_list = Int16[]
+  n_alleles_list = Int16[]
   # locus to int:
   l2int = Dict{String,Int16}(locus => idx for (idx, locus) in enumerate(loci))
   weight::Int8 = 0
@@ -51,7 +52,7 @@ function combine_loci_classification(k, results, loci)
       if l_as == n_alleles
         continue
       elseif l_as > half
-        allele_set = complement(allele_set, n_alleles)
+        allele_set = complement_alleles(allele_set, n_alleles)
         if isempty(allele_set)
           continue
         end
@@ -67,8 +68,9 @@ function combine_loci_classification(k, results, loci)
     end
     push!(loci_list, n_kmers_in_class)
     push!(loci_list, l2int[locus])
+    push!(n_alleles_list, n_alleles)
   end
-  return (loci_list, weight_list, alleles_list, kmer_list)
+  return (loci_list, weight_list, alleles_list, kmer_list, n_alleles_list)
 end
 
 function kmer_class_for_each_locus(k::Int8, files::Vector{String})
@@ -103,13 +105,14 @@ function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String)
 end
 
 function save_db(k, kmer_db, loci, filename)
-  loci_list, weight_list, alleles_list, kmer_list = kmer_db
+  loci_list, weight_list, alleles_list, kmer_list, n_alleles_list = kmer_db
   d = Dict(
     "k"=>k,
     "loci"=>loci,
     "loci_list"=> Blosc.compress(loci_list),
     "weight_list" => Blosc.compress(weight_list),
     "alleles_list" => Blosc.compress(alleles_list),
+    "n_alleles_list" => Blosc.compress(n_alleles_list),
     "kmer_list" => join(kmer_list,"")
   )
   JLD.save("$filename.jld", d)
@@ -121,6 +124,7 @@ function open_db(filename)
   alleles_list = Blosc.decompress(Int16, d["alleles_list"])
   loci_list = Blosc.decompress(Int, d["loci_list"])
   weight_list = Blosc.decompress(Int8, d["weight_list"])
+  n_alleles_list = Blosc.decompress(Int16, d["n_alleles_list"])
   kmer_str = d["kmer_list"]
   # build the kmer db in the usual format:
   kmer_classification = DefaultDict{DNAKmer{k}, Vector{Tuple{Int16, Int8, Vector{Int16}}}}(() -> Vector{Tuple{Int16, Int8, Vector{Int16}}}())
@@ -148,5 +152,5 @@ function open_db(filename)
       push!(kmer_classification[kmer], (locus_idx, weight, current_allele_list))
     end
   end
-  return kmer_classification, loci, k
+  return kmer_classification, loci, n_alleles_list, k
 end
