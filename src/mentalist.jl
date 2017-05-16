@@ -21,6 +21,14 @@ function parse_commandline()
           help = "Kmer database"
           required = true
           arg_type = String
+        "-t"
+          help = "A read is considered if it has at least this number of hits to the same locus. "
+          arg_type = Int
+          default = 10
+        "-q"
+          help = "Quick filter; if the first, middle and last kmers of a read are not in the kmer DB, the read is discarded. Disabled by default."
+          action = :store_true
+
         "files"
           nargs = '*'
           help = "FastQ input files"
@@ -28,53 +36,6 @@ function parse_commandline()
           arg_type = String
     end
     return parse_args(s)
-end
-
-function get_votes_for_sequence{k}(::Type{DNAKmer{k}}, seq, kmer_db, threshold=10, prefilter=false)
-  if prefilter
-    # stringMLST like pre_filter
-    half = div(length(seq),2)
-    try
-      testmer = DNAKmer{k}(seq[half:half+k-1])
-      if !haskey(kmer_db, testmer)
-        return false, false
-      end
-    catch
-      return false, false
-    end
-  end
-  # count all votes:
-  votes = Dict()
-  # count locus hits, for filtering
-  # locus_hits = DefaultDict{String,Int16}(0)
-  locus_hits = DefaultDict{Int16,Int16}(0)
-  for (pos, kmer) in each(DNAKmer{k}, DNASequence(seq), 1)
-    kmer = canonical(kmer)
-    if haskey(kmer_db, kmer)
-      for (locus, val, alleles) in kmer_db[kmer]
-        locus_hits[locus] += 1
-        for allele in alleles
-          if !haskey(votes, locus)
-            votes[locus] = DefaultDict{Int16, Int16}(0)
-          end
-          votes[locus][allele] += val
-        end
-      end
-    end
-  end
-  if isempty(votes)
-    return false, false
-  end
-  # check if locus hits are above the threshold for returning votes:
-  best_locus, n_hits = sort(collect(locus_hits), by=x->-x[2])[1]
-  # @show locus_hits
-  # @show best_locus
-  # @show sort(collect(values(votes[best_locus])))
-  if n_hits > threshold
-    return true, (best_locus, votes[best_locus])
-  else
-    return false, false
-  end
 end
 
 function main()
@@ -88,7 +49,7 @@ function main()
   for f in args["files"]
     istream = fastq_open(f)
     while (fq = fastq_read(istream))!=false
-      good, locus_to_allele_votes = get_votes_for_sequence(DNAKmer{k}, fq.sequence.seq, kmer_db)
+      good, locus_to_allele_votes = get_votes_for_sequence(DNAKmer{k}, fq.sequence.seq, kmer_db, args["t"], args["q"])
       if good
         locus, allele_votes = locus_to_allele_votes
         for (allele, val) in allele_votes
@@ -98,22 +59,7 @@ function main()
     end
   end
   info("Writing output ...")
-  best_votes_alleles = [sort(collect(votes[idx]), by=x->-x[2])[1][1] for (idx,locus) in enumerate(loci)]
-  open(args["o"], "w") do f
-    header = join(vcat(["Sample"], loci, ["ClonalComplex"]), "\t")
-    write(f,  "$header\n")
-    # todo: look in the database for the type, to assing a 'ClonalComplex'
-    calls = join(vcat([args["s"]], best_votes_alleles, ["0"]), "\t")
-    write(f, "$calls\n")
-  end
-  # debug votes:
-  # println(join(loci,"\t"))
-  # println(join([sort(collect(votes[idx]), by=x->-x[2])[1][1] for (idx,locus) in enumerate(loci)],"\t"))
-
-  for (idx,locus) in enumerate(loci)
-    sorted_vote = sort(collect(votes[idx]), by=x->-x[2])[1:10]
-    println("$locus:$sorted_vote")
-  end
+  write_calls(votes, loci, args["s"], args["o"])
   info("Done.")
 end
 

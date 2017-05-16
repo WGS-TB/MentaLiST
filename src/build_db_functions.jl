@@ -164,3 +164,64 @@ function open_db(filename)
   end
   return kmer_classification, loci, n_alleles_list, k
 end
+
+function write_calls(votes, loci, sample, filename)
+  best_votes_alleles = [sort(collect(votes[idx]), by=x->-x[2])[1][1] for (idx,locus) in enumerate(loci)]
+  open(filename, "w") do f
+    header = join(vcat(["Sample"], loci, ["ClonalComplex"]), "\t")
+    write(f,  "$header\n")
+    # todo: look in the database for the type, to assing a 'ClonalComplex'
+    calls = join(vcat([sample], best_votes_alleles, ["0"]), "\t")
+    write(f, "$calls\n")
+  end
+  # debug votes:
+  open("$filename.votes.txt", "w") do f
+    for (idx,locus) in enumerate(loci)
+      sorted_vote = sort(collect(votes[idx]), by=x->-x[2])[1:10]
+      write(f, "$locus:$sorted_vote\n")
+    end
+  end
+end
+
+function get_votes_for_sequence{k}(::Type{DNAKmer{k}}, seq, kmer_db, threshold=10, prefilter=false)
+  if isempty(seq)
+    return false, false
+  end
+  if prefilter  # stringMLST like pre_filter
+    half = div(length(seq)+k,2)
+    testmer1 = DNAKmer{k}(seq[half:half+k-1])
+    testmer2 = DNAKmer{k}(seq[1:k])
+    testmer3 = DNAKmer{k}(seq[end-k+1:end])
+    if !haskey(kmer_db, testmer1) && !haskey(kmer_db, testmer2) && !haskey(kmer_db, testmer3)
+      return false, false
+    end
+  end
+  # count all votes:
+  votes = Dict()
+  # count locus hits, for filtering
+  locus_hits = DefaultDict{Int16,Int16}(0)
+  for (pos, kmer) in each(DNAKmer{k}, DNASequence(seq), 1)
+    kmer = canonical(kmer)
+    if haskey(kmer_db, kmer)
+      for (locus, val, alleles) in kmer_db[kmer]
+        locus_hits[locus] += 1
+        for allele in alleles
+          if !haskey(votes, locus)
+            votes[locus] = DefaultDict{Int16, Int16}(0)
+          end
+          votes[locus][allele] += val
+        end
+      end
+    end
+  end
+  if isempty(votes)
+    return false, false
+  end
+  # check if locus hits are above the threshold for returning votes:
+  best_locus, n_hits = sort(collect(locus_hits), by=x->-x[2])[1]
+  if n_hits > threshold
+    return true, (best_locus, votes[best_locus])
+  else
+    return false, false
+  end
+end
