@@ -4,23 +4,19 @@ import GZip
 import JLD
 import Blosc
 
-function complement_alleles(orig_set, m)
-  # array = collect(orig_set)
-  # c_set = OrderedSet{Int16}()
-  array = orig_set
-  c_set = Int16[]
-
+function complement_alleles(vector, m)
+  comp_vector = Int16[]
   expected::Int16 = 1
   i::Int16 = 1
-  l::Int16 = length(array)
+  l::Int16 = length(vector)
   while i <= l
-    diff = array[i] - expected
+    diff = vector[i] - expected
     if diff < 0
       i += 1
       continue
     end
     while diff > 0
-      push!(c_set, expected)
+      push!(comp_vector, expected)
       expected += 1
       diff -= 1
     end
@@ -28,10 +24,10 @@ function complement_alleles(orig_set, m)
     expected +=1
   end
   while expected <= m
-    push!(c_set, expected)
+    push!(comp_vector, expected)
     expected += 1
   end
-  return c_set
+  return comp_vector
 end
 
 function combine_loci_classification(k, results, loci)
@@ -50,27 +46,27 @@ function combine_loci_classification(k, results, loci)
     relabel = !issorted(idx_to_allele_id)
     half = n_alleles/2
     n_kmers_in_class = 0
-    for (kmer, allele_set) in kmer_class
-      l_as = length(allele_set)
+    for (kmer, allele_list) in kmer_class
+      l_as = length(allele_list)
       if l_as == n_alleles
         continue
       elseif l_as > half
-        allele_set = complement_alleles(allele_set, n_alleles)
-        if isempty(allele_set)
+        allele_list = complement_alleles(allele_list, n_alleles)
+        if isempty(allele_list)
           continue
         end
         weight = -1
       else
         weight = 1
       end
-      # relabel the allele_set if needed:
+      # relabel the allele_list if needed:
       if relabel
-        allele_set = [idx_to_allele_id[i] for i in allele_set]
+        allele_list = [idx_to_allele_id[i] for i in allele_list]
       end
       push!(kmer_list, "$kmer")
       push!(weight_list, weight)
-      push!(alleles_list, length(allele_set))
-      append!(alleles_list, allele_set)
+      push!(alleles_list, length(allele_list))
+      append!(alleles_list, allele_list)
       n_kmers_in_class += 1
     end
     push!(loci_list, n_kmers_in_class)
@@ -94,7 +90,6 @@ end
 
 function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String)
   record = FASTASeqRecord{BioSequence{DNAAlphabet{2}}}()
-  # kmer_class = DefaultDict{DNAKmer{k}, OrderedSet{Int16}}(() -> OrderedSet{Int16}())
   kmer_class = DefaultDict{DNAKmer{k}, Vector{Int16}}(() -> Int16[])
   idx_to_allele_id = Int16[]
   allele_idx::Int16 = 1
@@ -184,17 +179,19 @@ function write_calls(votes, loci, sample, filename)
 end
 
 function get_votes_for_sequence{k}(::Type{DNAKmer{k}}, seq, kmer_db, threshold=10, prefilter=false)
-  if isempty(seq)
+  if length(seq) < k
     return false, false
   end
   if prefilter  # stringMLST like pre_filter
-    half = div(length(seq)+k,2)
-    testmer1 = DNAKmer{k}(seq[half:half+k-1])
-    testmer2 = DNAKmer{k}(seq[1:k])
-    testmer3 = DNAKmer{k}(seq[end-k+1:end])
-    if !haskey(kmer_db, testmer1) && !haskey(kmer_db, testmer2) && !haskey(kmer_db, testmer3)
-      return false, false
-    end
+    try
+      half = div(length(seq)-k,2)
+      testmer = DNAKmer{k}(seq[half:half+k-1])
+      if !haskey(kmer_db, testmer)
+        return false, false
+      end
+    catch LoadError
+       # if it has an ambiguous base (N), throws an exception; I will not filter in this case
+     end
   end
   # count all votes:
   votes = Dict()
