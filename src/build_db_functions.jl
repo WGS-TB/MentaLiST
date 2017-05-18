@@ -31,19 +31,33 @@ function complement_alleles(vector, m)
 end
 
 function combine_loci_classification(k, results, loci)
+  # Arrays to store the kmer classification votes:
+  # all kmers in one big list:
   kmer_list = String[]
-  loci_list = Int[]
+
+  # list with elements n1, l1, n2, l2, ..., where n1 is the number of kmers on
+  # the kmer_list that corresponds to the the locus l1
+  loci_list = Int16[]
+
+  # +1 and -1 corresponding to the weight of the kmer:
   weight_list = Int8[]
+
+  # n1, a_1, ..., a_n1, n2, b_1, ..., b_n2, ...
+  # n1 is the number of alleles corresponding to the next kmer, a_1,...,a_n1 are
+  # the alleles getting the vote for the kmer;
   alleles_list = Int16[]
-  n_alleles_list = Int16[]
-  # locus to int:
+
+  # Store the allele ids for each locus; In the DB, we index the alleles from 1 to n,
+  # so we have to store the original ID to translate back in the output:
+  # same format as alleles list: a list size (# of alleles), then the list of alleles;
+  allele_ids_per_locus = Int16[]
+
+  # locus to int.
   l2int = Dict{String,Int16}(locus => idx for (idx, locus) in enumerate(loci))
   weight::Int8 = 0
 
-  for (locus, kmer_class, idx_to_allele_id) in results
-    n_alleles = length(idx_to_allele_id)
-    # check if the relabeling is not sorted, which means we need to relabel the alleles;
-    relabel = !issorted(idx_to_allele_id)
+  for (locus, kmer_class, allele_ids) in results
+    n_alleles = length(allele_ids)
     half = n_alleles/2
     n_kmers_in_class = 0
     for (kmer, allele_list) in kmer_class
@@ -59,10 +73,6 @@ function combine_loci_classification(k, results, loci)
       else
         weight = 1
       end
-      # relabel the allele_list if needed:
-      if relabel
-        allele_list = [idx_to_allele_id[i] for i in allele_list]
-      end
       push!(kmer_list, "$kmer")
       push!(weight_list, weight)
       push!(alleles_list, length(allele_list))
@@ -71,9 +81,10 @@ function combine_loci_classification(k, results, loci)
     end
     push!(loci_list, n_kmers_in_class)
     push!(loci_list, l2int[locus])
-    push!(n_alleles_list, n_alleles)
+    push!(allele_ids_per_locus, n_alleles)
+    append!(allele_ids_per_locus, allele_ids)
   end
-  return (loci_list, weight_list, alleles_list, kmer_list, n_alleles_list)
+  return (loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus)
 end
 
 function kmer_class_for_each_locus(k::Int8, files::Vector{String})
@@ -82,8 +93,8 @@ function kmer_class_for_each_locus(k::Int8, files::Vector{String})
   for file in files
     locus::String = splitext(basename(file))[1]
     push!(loci, locus)
-    kmer_class, idx_to_allele_id = kmer_class_for_locus(DNAKmer{k}, file)
-    push!(results, (locus,kmer_class, idx_to_allele_id))
+    kmer_class, allele_ids = kmer_class_for_locus(DNAKmer{k}, file)
+    push!(results, (locus,kmer_class, allele_ids))
   end
   return results, loci
 end
@@ -91,7 +102,7 @@ end
 function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String)
   record = FASTASeqRecord{BioSequence{DNAAlphabet{2}}}()
   kmer_class = DefaultDict{DNAKmer{k}, Vector{Int16}}(() -> Int16[])
-  idx_to_allele_id = Int16[]
+  allele_ids = Int16[]
   allele_idx::Int16 = 1
   open(FASTAReader{BioSequence{DNAAlphabet{2}}}, fastafile) do reader
       while !eof(reader)
@@ -101,24 +112,24 @@ function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String)
           end
           # update idx; the counter idx is incremental (1,2, ...) because we need the array sorted.
           # But this is not always sin the allele ordering, so we have to save the original id to restore it later;
-          allele_id = parse(Int16,split(record.name, "_")[2])
-          push!(idx_to_allele_id, allele_id)
+          allele_id = parse(Int16,split(record.name, "_")[end])
+          push!(allele_ids, allele_id)
           allele_idx += 1
       end
   end
-  return kmer_class, idx_to_allele_id
+  return kmer_class, allele_ids
 end
 
 function save_db(k, kmer_db, loci, filename)
-  loci_list, weight_list, alleles_list, kmer_list, n_alleles_list = kmer_db
+  loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus = kmer_db
   d = Dict(
-    "k"=>k,
-    "loci"=>loci,
     "loci_list"=> Blosc.compress(loci_list),
     "weight_list" => Blosc.compress(weight_list),
     "alleles_list" => Blosc.compress(alleles_list),
-    "n_alleles_list" => Blosc.compress(n_alleles_list),
-    "kmer_list" => join(kmer_list,"")
+    "kmer_list" => join(kmer_list,""),
+    "allele_ids_per_locus" => Blosc.compress(allele_ids_per_locus),
+    "k"=>k,
+    "loci"=>loci
   )
   JLD.save("$filename.jld", d)
 end
@@ -127,10 +138,20 @@ function open_db(filename)
   k = d["k"]
   loci = d["loci"]
   alleles_list = Blosc.decompress(Int16, d["alleles_list"])
-  loci_list = Blosc.decompress(Int, d["loci_list"])
+  loci_list = Blosc.decompress(Int16, d["loci_list"])
   weight_list = Blosc.decompress(Int8, d["weight_list"])
-  n_alleles_list = Blosc.decompress(Int16, d["n_alleles_list"])
+  allele_ids_per_locus = Blosc.decompress(Int16, d["allele_ids_per_locus"])
   kmer_str = d["kmer_list"]
+  # build a dict to transform allele idx (1,2,...) to original allele ids:
+  loci2alleles = Dict{Int16, Vector{Int16}}(idx => Int16[] for (idx,locus) in enumerate(loci))
+  allele_ids_idx = 1
+  locus_idx = 1
+  while allele_ids_idx < length(allele_ids_per_locus)
+    n_alleles = allele_ids_per_locus[allele_ids_idx]
+    append!(loci2alleles[locus_idx], allele_ids_per_locus[allele_ids_idx+1:allele_ids_idx + n_alleles])
+    allele_ids_idx += 1 + n_alleles
+    locus_idx += 1
+  end
   # build the kmer db in the usual format:
   kmer_classification = DefaultDict{DNAKmer{k}, Vector{Tuple{Int16, Int8, Vector{Int16}}}}(() -> Vector{Tuple{Int16, Int8, Vector{Int16}}}())
   # tuple is locus idx, weight, and list of alleles;
@@ -157,16 +178,19 @@ function open_db(filename)
       push!(kmer_classification[kmer], (locus_idx, weight, current_allele_list))
     end
   end
-  return kmer_classification, loci, n_alleles_list, k
+  return kmer_classification, loci, loci2alleles, k
 end
 
-function write_calls(votes, loci, sample, filename)
-  best_votes_alleles = [sort(collect(votes[idx]), by=x->-x[2])[1][1] for (idx,locus) in enumerate(loci)]
+function write_calls(votes, loci, loci2alleles, sample, filename)
+  # get best voted:
+  best_voted_alleles = [sort(collect(votes[idx]), by=x->-x[2])[1][1] for (idx,locus) in enumerate(loci)]
+  # translate alleles to original id:
+  best_voted_alleles = [loci2alleles[locus_idx][best] for (locus_idx, best) in enumerate(best_voted_alleles)]
   open(filename, "w") do f
     header = join(vcat(["Sample"], loci, ["ClonalComplex"]), "\t")
     write(f,  "$header\n")
     # todo: look in the database for the type, to assing a 'ClonalComplex'
-    calls = join(vcat([sample], best_votes_alleles, ["0"]), "\t")
+    calls = join(vcat([sample], best_voted_alleles, ["0"]), "\t")
     write(f, "$calls\n")
   end
   # debug votes:

@@ -42,9 +42,9 @@ function main()
   Logging.configure(level=INFO)
   args = parse_commandline()
   info("Opening kmer database ... ")
-  kmer_db, loci, n_alleles_list, k = open_db(args["db"])
+  kmer_db, loci, loci2alleles, k = open_db(args["db"])
   # 0 votes for all alleles everyone at the start:
-  votes = Dict(idx => Dict{Int16, Int16}(i => 0 for i=1:n_alleles) for (idx,n_alleles) in enumerate(n_alleles_list))
+  votes = Dict(locus_idx => Dict{Int16, Int16}(i => 0 for i in 1:length(alleles)) for (locus_idx,alleles) in loci2alleles)
   info("Opening fastq file(s) ... ")
   for f in args["files"]
     istream = fastq_open(f)
@@ -59,7 +59,7 @@ function main()
     end
   end
   info("Writing output ...")
-  write_calls(votes, loci, args["s"], args["o"])
+  write_calls(votes, loci, loci2alleles, args["s"], args["o"])
   info("Done.")
 end
 
