@@ -37,7 +37,7 @@ function combine_loci_classification(k, results, loci)
 
   # list with elements n1, l1, n2, l2, ..., where n1 is the number of kmers on
   # the kmer_list that corresponds to the the locus l1
-  loci_list = Int16[]
+  loci_list = Int[]
 
   # +1 and -1 corresponding to the weight of the kmer:
   weight_list = Int8[]
@@ -45,12 +45,12 @@ function combine_loci_classification(k, results, loci)
   # n1, a_1, ..., a_n1, n2, b_1, ..., b_n2, ...
   # n1 is the number of alleles corresponding to the next kmer, a_1,...,a_n1 are
   # the alleles getting the vote for the kmer;
-  alleles_list = Int16[]
+  alleles_list = Int[]
 
   # Store the allele ids for each locus; In the DB, we index the alleles from 1 to n,
   # so we have to store the original ID to translate back in the output:
   # same format as alleles list: a list size (# of alleles), then the list of alleles;
-  allele_ids_per_locus = Int16[]
+  allele_ids_per_locus = Int[]
 
   # locus to int.
   l2int = Dict{String,Int16}(locus => idx for (idx, locus) in enumerate(loci))
@@ -79,6 +79,7 @@ function combine_loci_classification(k, results, loci)
       append!(alleles_list, allele_list)
       n_kmers_in_class += 1
     end
+    # @show n_kmers_in_class
     push!(loci_list, n_kmers_in_class)
     push!(loci_list, l2int[locus])
     push!(allele_ids_per_locus, n_alleles)
@@ -137,10 +138,10 @@ function open_db(filename)
   d = JLD.load("$filename.jld")
   k = d["k"]
   loci = d["loci"]
-  alleles_list = Blosc.decompress(Int16, d["alleles_list"])
-  loci_list = Blosc.decompress(Int16, d["loci_list"])
+  alleles_list = Blosc.decompress(Int, d["alleles_list"])
+  loci_list = Blosc.decompress(Int, d["loci_list"])
   weight_list = Blosc.decompress(Int8, d["weight_list"])
-  allele_ids_per_locus = Blosc.decompress(Int16, d["allele_ids_per_locus"])
+  allele_ids_per_locus = Blosc.decompress(Int, d["allele_ids_per_locus"])
   kmer_str = d["kmer_list"]
   # build a dict to transform allele idx (1,2,...) to original allele ids:
   loci2alleles = Dict{Int16, Vector{Int16}}(idx => Int16[] for (idx,locus) in enumerate(loci))
