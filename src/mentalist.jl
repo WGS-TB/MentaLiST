@@ -44,7 +44,7 @@ function main()
   info("Opening kmer database ... ")
   kmer_db, loci, loci2alleles, k = open_db(args["db"])
   # 0 votes for all alleles everyone at the start:
-  votes = Dict(locus_idx => Dict{Int16, Int16}(i => 0 for i in 1:length(alleles)) for (locus_idx,alleles) in loci2alleles)
+  votes = Dict(locus_idx => Dict{Int16, Int}(i => 0 for i in 1:length(alleles)) for (locus_idx,alleles) in loci2alleles)
   info("Opening fastq file(s) ... ")
   for f in args["files"]
     istream = fastq_open(f)
