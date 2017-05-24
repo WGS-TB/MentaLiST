@@ -37,7 +37,7 @@ function combine_loci_classification(k, results, loci)
 
   # list with elements n1, l1, n2, l2, ..., where n1 is the number of kmers on
   # the kmer_list that corresponds to the the locus l1
-  loci_list = Int[]
+  loci_list = Int32[]
 
   # +1 and -1 corresponding to the weight of the kmer:
   weight_list = Int8[]
@@ -45,7 +45,7 @@ function combine_loci_classification(k, results, loci)
   # n1, a_1, ..., a_n1, n2, b_1, ..., b_n2, ...
   # n1 is the number of alleles corresponding to the next kmer, a_1,...,a_n1 are
   # the alleles getting the vote for the kmer;
-  alleles_list = Int[]
+  alleles_list = Int16[]
 
   # Store the allele ids for each locus; In the DB, we index the alleles from 1 to n,
   # so we have to store the original ID to translate back in the output:
@@ -121,25 +121,54 @@ function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String)
   return kmer_class, allele_ids
 end
 
+# sizeof(loci_list) = 48032
+# sizeof(weight_list) = 54020613 = 51 MB
+# sizeof(alleles_list) = 10382740024 = 9.6 GB
+# sizeof(allele_ids_per_locus) = 17769664 = 16 MB.
+
 function save_db(k, kmer_db, loci, filename)
   loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus = kmer_db
   d = Dict(
     "loci_list"=> Blosc.compress(loci_list),
     "weight_list" => Blosc.compress(weight_list),
-    "alleles_list" => Blosc.compress(alleles_list),
-    "kmer_list" => join(kmer_list,""),
     "allele_ids_per_locus" => Blosc.compress(allele_ids_per_locus),
+    "kmer_list" => join(kmer_list,""),
     "k"=>k,
     "loci"=>loci
   )
+  # alleles list: potentially larger than 2G, so check limit:
+  limit = floor(Int,2000000000/sizeof(alleles_list[1])) # Blosc limit is 2147483631, slightly less than 2G (2147483648). Using 2000000000 just to make it easier on the eye. :)
+  if sizeof(alleles_list) <= limit
+    d["alleles_list"] = Blosc.compress(alleles_list)
+  else
+    # we have to break this into smaller chunks:
+    n_chunks = ceil(Int, length(alleles_list)/limit)
+    l = length(alleles_list)
+    for i = 0:n_chunks-1
+      name = "alleles_list_$i"
+      s = i*limit + 1
+      e = min((i+1)*limit,l)
+      d[name] = Blosc.compress(alleles_list[s:e])
+    end
+  end
   JLD.save("$filename.jld", d)
 end
 function open_db(filename)
   d = JLD.load("$filename.jld")
+  # alleles_list might be split into smaller parts:
+  alleles_list = []
+  if haskey(d, "alleles_list")
+    alleles_list = Blosc.decompress(Int16, d["alleles_list"])
+  else
+    idx = 0
+    while haskey(d, "alleles_list_$idx")
+      append!(alleles_list,Blosc.decompress(Int16, d["alleles_list_$idx"]))
+      idx += 1
+    end
+  end
   k = d["k"]
   loci = d["loci"]
-  alleles_list = Blosc.decompress(Int, d["alleles_list"])
-  loci_list = Blosc.decompress(Int, d["loci_list"])
+  loci_list = Blosc.decompress(Int32, d["loci_list"])
   weight_list = Blosc.decompress(Int8, d["weight_list"])
   allele_ids_per_locus = Blosc.decompress(Int, d["allele_ids_per_locus"])
   kmer_str = d["kmer_list"]
