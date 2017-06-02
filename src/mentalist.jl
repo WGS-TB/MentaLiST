@@ -22,9 +22,10 @@ function parse_commandline()
           required = true
           arg_type = String
         "-t"
-          help = "A read is considered if it has at least this number of hits to the same locus. "
-          arg_type = Int
-          default = 10
+          help = "A read of length L is discarded if it has at less than (L - k) * t hits to the same locus in the kmer database, where k is the kmer length. 0 <= t <= 1"
+          arg_type = Float64
+          default = 0.2
+          range_tester = x -> 0 <= x <= 1
         "-q"
           help = "Quick filter; if the first, middle and last kmers of a read are not in the kmer DB, the read is discarded. Disabled by default."
           action = :store_true
@@ -52,6 +53,10 @@ function main()
       good, locus_to_allele_votes = get_votes_for_sequence(DNAKmer{k}, fq.sequence.seq, kmer_db, args["t"], args["q"])
       if good
         locus, allele_votes = locus_to_allele_votes
+        # @printf "%d to %s " minimum(collect(values(allele_votes))) maximum(collect(values(allele_votes)))
+        # if haskey(allele_votes, 3)
+        #   @show allele_votes[3]
+        # end
         for (allele, val) in allele_votes
           votes[locus][allele] += val
         end

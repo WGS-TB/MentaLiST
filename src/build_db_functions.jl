@@ -225,14 +225,16 @@ function write_calls(votes, loci, loci2alleles, sample, filename)
   end
   # debug votes:
   open("$filename.votes.txt", "w") do f
+    write(f, "Locus\tAllele(votes),...\n")
     for (idx,locus) in enumerate(loci)
       sorted_vote = sort(collect(votes[idx]), by=x->-x[2])[1:10]
-      write(f, "$locus:$sorted_vote\n")
+      votes_txt = join(["$a($b)" for (a,b) in sorted_vote],", ")
+      write(f, "$locus\t$votes_txt\n")
     end
   end
 end
 
-function get_votes_for_sequence{k}(::Type{DNAKmer{k}}, seq, kmer_db, threshold=10, prefilter=false)
+function get_votes_for_sequence{k}(::Type{DNAKmer{k}}, seq, kmer_db, threshold, prefilter=false)
   if length(seq) < k
     return false, false
   end
@@ -270,7 +272,7 @@ function get_votes_for_sequence{k}(::Type{DNAKmer{k}}, seq, kmer_db, threshold=1
   end
   # check if locus hits are above the threshold for returning votes:
   best_locus, n_hits = sort(collect(locus_hits), by=x->-x[2])[1]
-  if n_hits > threshold
+  if n_hits > (length(seq) - k) * threshold
     return true, (best_locus, votes[best_locus])
   else
     return false, false
