@@ -227,7 +227,8 @@ function write_calls(votes, loci, loci2alleles, sample, filename)
   open("$filename.votes.txt", "w") do f
     write(f, "Locus\tAllele(votes),...\n")
     for (idx,locus) in enumerate(loci)
-      sorted_vote = sort(collect(votes[idx]), by=x->-x[2])[1:10]
+      max_idx = min(length(votes[idx]),10)
+      sorted_vote = sort(collect(votes[idx]), by=x->-x[2])[1:max_idx]
       votes_txt = join(["$a($b)" for (a,b) in sorted_vote],", ")
       write(f, "$locus\t$votes_txt\n")
     end
