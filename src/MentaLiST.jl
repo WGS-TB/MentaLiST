@@ -1,3 +1,5 @@
+module MentaLiST
+  
 include("build_db_functions.jl")
 using OpenGene
 using Logging
@@ -114,3 +116,5 @@ function main()
 end
 
 main()
+
+end
