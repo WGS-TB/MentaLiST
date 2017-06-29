@@ -1,5 +1,4 @@
 using Base.Test
-using MentaLiST
 
 include("../src/build_db_functions.jl")
 
