@@ -1,0 +1,33 @@
+<tool id="mentalist_build" name="MentaLiST Build DB" version="0.0.0">
+    <command detect_errors="exit_code"><![CDATA[
+    julia
+    '$__tool_directory__/build_db.jl'
+    -o '$output_file'
+    -k '$kmer_size'
+    ${" ".join(map(str, $input_fastas))}
+    ]]></command>
+    <inputs>
+      <param name="kmer_size" type="integer"
+	     label="Kmer size" help="Kmer size"
+	     value="31" min="1" max="31" />
+      <param name="input_fastas" type="data_collection" collection_type="list" format="fasta" multiple="true"
+	     label="Input Fasta" help="Fasta input files" />
+    </inputs>
+    <outputs>
+      <data name="output_file" format="h5" />
+    </outputs>
+    <help><![CDATA[
+    usage: build_db.jl -o O -k K [-h] files...
+
+    positional arguments:
+    files       Fasta files with the MLST scheme
+
+    optional arguments:
+    -o O        Output file (kmer database)
+    -k K        Kmer size (type: Int8)
+    -h, --help  show this help message and exit
+    ]]></help>
+    <citations>
+      <citation></citation>
+    </citations>
+</tool>
