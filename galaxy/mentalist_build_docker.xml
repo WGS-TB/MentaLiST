@@ -1,0 +1,38 @@
+<tool id="mentalist_build_docker" name="MentaLiST Build DB (Docker)" version="0.0.0">
+    <requirements>
+        <container type="docker">dfornika/mentalist-galaxy</container>
+    </requirements>
+    <command detect_errors="exit_code"><![CDATA[
+    JULIA_PKGDIR=/opt/julia-0.5.2/share/julia/site
+    HOME=/tool
+    julia
+    '/tool/build_db.jl'
+    -o '$output_file'
+    -k '$kmer_size'
+    ${" ".join(map(str, $input_fastas))}
+    ]]></command>
+    <inputs>
+      <param name="kmer_size" type="integer"
+	     label="Kmer size" help="Kmer size"
+	     value="31" min="1" max="31" />
+      <param name="input_fastas" type="data_collection" collection_type="list" format="fasta" multiple="true"
+	     label="Input Fasta" help="Fasta input files" />
+    </inputs>
+    <outputs>
+      <data name="output_file" format="h5" />
+    </outputs>
+    <help><![CDATA[
+    usage: build_db.jl -o O -k K [-h] files...
+
+    positional arguments:
+    files       Fasta files with the MLST scheme
+
+    optional arguments:
+    -o O        Output file (kmer database)
+    -k K        Kmer size (type: Int8)
+    -h, --help  show this help message and exit
+    ]]></help>
+    <citations>
+      <citation></citation>
+    </citations>
+</tool>
