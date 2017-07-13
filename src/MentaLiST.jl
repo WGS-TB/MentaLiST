@@ -1,5 +1,5 @@
 module MentaLiST
-  
+
 include("build_db_functions.jl")
 using OpenGene
 using Logging
@@ -54,6 +54,10 @@ function parse_commandline()
         "-e"
           help = "Use external kmc kmer counter. Disabled by default."
           action = :store_true
+        "-j"
+          help = "Skip length between consecutive k-mers. Defaults to 1."
+          arg_type = Int
+          default = 1
         "files"
           nargs = '*'
           help = "FastQ input files"
@@ -96,7 +100,7 @@ function main()
     for f in args["files"]
       istream = fastq_open(f)
       while (fq = fastq_read(istream))!=false
-        good, locus_to_allele_votes = get_votes_for_sequence(DNAKmer{k}, fq.sequence.seq, kmer_db, args["t"], args["q"])
+        good, locus_to_allele_votes = get_votes_for_sequence(DNAKmer{k}, fq.sequence.seq, kmer_db, args["t"], args["q"], args["j"])
         if good
           locus, allele_votes = locus_to_allele_votes
           # @printf "%d to %s " minimum(collect(values(allele_votes))) maximum(collect(values(allele_votes)))

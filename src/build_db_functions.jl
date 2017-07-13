@@ -239,7 +239,7 @@ function write_calls(votes, loci, loci2alleles, sample, filename)
         current = 1
         ties[locus] = Int16[]
         while (current <= length(sorted_vote) && sorted_vote[current][2] == tied_val)
-          push!(ties[locus], current)
+          push!(ties[locus], sorted_vote[current][1])
           current += 1
         end
       end
@@ -254,7 +254,7 @@ function write_calls(votes, loci, loci2alleles, sample, filename)
   end
 end
 
-function get_votes_for_sequence{k}(::Type{DNAKmer{k}}, seq, kmer_db, threshold, prefilter=false)
+function get_votes_for_sequence{k}(::Type{DNAKmer{k}}, seq, kmer_db, threshold, prefilter=false, step=1)
   if length(seq) < k
     return false, false
   end
@@ -273,7 +273,7 @@ function get_votes_for_sequence{k}(::Type{DNAKmer{k}}, seq, kmer_db, threshold, 
   votes = Dict()
   # count locus hits, for filtering
   locus_hits = DefaultDict{Int16,Int16}(0)
-  for (pos, kmer) in each(DNAKmer{k}, DNASequence(seq), 1)
+  for (pos, kmer) in each(DNAKmer{k}, DNASequence(seq), step)
     kmer = canonical(kmer)
     if haskey(kmer_db, kmer)
       for (locus, val, alleles) in kmer_db[kmer]
