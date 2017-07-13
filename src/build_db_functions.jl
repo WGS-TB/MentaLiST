@@ -223,14 +223,33 @@ function write_calls(votes, loci, loci2alleles, sample, filename)
     calls = join(vcat([sample], best_voted_alleles, ["0"]), "\t")
     write(f, "$calls\n")
   end
-  # debug votes:
+  # debug votes, find ties:
+  ties = Dict{String,Vector{Int16}}()
   open("$filename.votes.txt", "w") do f
     write(f, "Locus\tAllele(votes),...\n")
     for (idx,locus) in enumerate(loci)
       max_idx = min(length(votes[idx]),10)
-      sorted_vote = sort(collect(votes[idx]), by=x->-x[2])[1:max_idx]
-      votes_txt = join(["$a($b)" for (a,b) in sorted_vote],", ")
+      sorted_vote = sort(collect(votes[idx]), by=x->-x[2])
+      votes_txt = join(["$a($b)" for (a,b) in sorted_vote[1:max_idx]],", ")
       write(f, "$locus\t$votes_txt\n")
+      # ties:
+      if (sorted_vote[1][2] == sorted_vote[2][2])
+        # find all ties:
+        tied_val = sorted_vote[1][2]
+        current = 1
+        ties[locus] = Int16[]
+        while (current <= length(sorted_vote) && sorted_vote[current][2] == tied_val)
+          push!(ties[locus], current)
+          current += 1
+        end
+      end
+    end
+  end
+  # write ties:
+  open("$filename.ties.txt", "w") do f
+    for (locus, tied_alleles) in ties
+      ties_txt = join(["$t" for t in tied_alleles],", ")
+      write(f, "$locus\t$ties_txt\n")
     end
   end
 end
