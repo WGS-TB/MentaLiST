@@ -127,7 +127,7 @@ end
 function call_mlst(args)
   include("build_db_functions.jl")
   info("Opening kmer database ... ")
-  kmer_db, loci, loci2alleles, k = open_db(args["db"])
+  kmer_db, loci, loci2alleles, k, profile = open_db(args["db"])
   # 0 votes for all alleles everyone at the start:
   votes = Dict(locus_idx => Dict{Int16, Int}(i => 0 for i in 1:length(alleles)) for (locus_idx,alleles) in loci2alleles)
   if args["e"] # external kmer counter:
@@ -167,7 +167,7 @@ function call_mlst(args)
     end
   end
   info("Writing output ...")
-  write_calls(votes, loci, loci2alleles, args["s"], args["o"])
+  write_calls(votes, loci, loci2alleles, args["s"], args["o"], profile)
   info("Done.")
 end
 
