@@ -1,4 +1,4 @@
-<tool id="mentalist_mlst_docker" name="MentaLiST MLST Analysis (Docker)" version="0.0.0">
+<tool id="mentalist_call_docker" name="MentaLiST MLST Analysis (Docker)" version="0.0.0">
     <requirements>
         <container type="docker">dfornika/mentalist-galaxy</container>
     </requirements>
