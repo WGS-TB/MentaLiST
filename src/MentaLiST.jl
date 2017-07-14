@@ -1,11 +1,7 @@
 module MentaLiST
+using Lumberjack
 
-include("build_db_functions.jl")
-using OpenGene
-using Logging
 using ArgParse
-using Bio.Seq
-using DataStructures
 
 
 function kmerize_kmc(files, k, threads=1)
@@ -31,6 +27,18 @@ end
 function parse_commandline()
     s = ArgParseSettings()
     @add_arg_table s begin
+      "call"
+        help = "MLST caller, given a sample and a k-mer database."
+        action = :command
+      "build_db"
+        help = "Build a MLST k-mer database, given a list of FASTA files."
+        action = :command
+      "pubmlst"
+        help = "Dowload a MLST scheme from pubmlst and build a MLST k-mer database."
+        action = :command
+    end
+    # Calling MLST options:
+    @add_arg_table s["call"] begin
         "-o"
           help = "Output file with MLST call"
           arg_type = String
@@ -46,10 +54,10 @@ function parse_commandline()
         "-t"
           help = "A read of length L is discarded if it has at less than (L - k) * t hits to the same locus in the kmer database, where k is the kmer length. 0 <= t <= 1"
           arg_type = Float64
-          default = 0.3
+          default = 0.2
           range_tester = x -> 0 <= x <= 1
         "-q"
-          help = "Quick filter; if the first, middle and last kmers of a read are not in the kmer DB, the read is discarded. Disabled by default."
+          help = "Quick filter; if middle kmer of a read are not in the kmer DB, the read is discarded. Disabled by default."
           action = :store_true
         "-e"
           help = "Use external kmc kmer counter. Disabled by default."
@@ -64,12 +72,28 @@ function parse_commandline()
           required = true
           arg_type = String
     end
+    # Build DB from FASTA, options:
+    @add_arg_table s["build_db"] begin
+        "-o"
+          help = "Output file (kmer database)"
+          arg_type = String
+          required = true
+        "-k"
+          help = "Kmer size"
+          required = true
+          arg_type = Int8
+        "files"
+            nargs = '*'
+            arg_type = String
+            help = "Fasta files with the MLST scheme"
+            required = true
+    end
+
     return parse_args(s)
 end
 
-function main()
-  Logging.configure(level=INFO)
-  args = parse_commandline()
+function call_mlst(args)
+  include("build_db_functions.jl")
   info("Opening kmer database ... ")
   kmer_db, loci, loci2alleles, k = open_db(args["db"])
   # 0 votes for all alleles everyone at the start:
@@ -103,10 +127,6 @@ function main()
         good, locus_to_allele_votes = get_votes_for_sequence(DNAKmer{k}, fq.sequence.seq, kmer_db, args["t"], args["q"], args["j"])
         if good
           locus, allele_votes = locus_to_allele_votes
-          # @printf "%d to %s " minimum(collect(values(allele_votes))) maximum(collect(values(allele_votes)))
-          # if haskey(allele_votes, 3)
-          #   @show allele_votes[3]
-          # end
           for (allele, val) in allele_votes
             votes[locus][allele] += val
           end
@@ -117,6 +137,34 @@ function main()
   info("Writing output ...")
   write_calls(votes, loci, loci2alleles, args["s"], args["o"])
   info("Done.")
+end
+
+
+function build_db(args)
+  include("build_db_functions.jl")
+  k::Int8 = args["k"]
+
+  info("Opening FASTA files ... ")
+  results, loci = kmer_class_for_each_locus(k, args["files"])
+  # Combine results:
+  info("Combining results for each locus ...")
+  kmer_classification = combine_loci_classification(k, results, loci)
+
+  info("Saving DB ...")
+  save_db(k, kmer_classification, loci, args["o"])
+  info("Done!")
+end
+
+function main()
+  args = parse_commandline()
+  # determine command:
+  if args["%COMMAND%"] == "call"
+    call_mlst(args["call"])
+  elseif args["%COMMAND%"] == "build_db"
+    build_db(args["build_db"])
+  elseif args["%COMMAND%"] == "pubmlst"
+    println("not implemented ...")
+  end
 end
 
 main()

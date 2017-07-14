@@ -3,6 +3,8 @@ using DataStructures
 import GZip
 import JLD
 import Blosc
+using OpenGene
+
 
 function complement_alleles(vector, m)
   comp_vector = Int16[]
