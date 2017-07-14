@@ -20,8 +20,8 @@ function kmerize_kmc(files, k, threads=1)
     filepath = files[1]
   end
   # now run:
-  run(`/projects/pathogist/bin/kmc -k$k -t$threads -ci0 $filepath $outpath /tmp`)
-  run(`/projects/pathogist/bin/kmc_tools transform $outpath dump $outpath`)
+  run(`kmc -k$k -t$threads -ci0 $filepath $outpath /tmp`)
+  run(`kmc_tools transform $outpath dump $outpath`)
   return outpath
 end
 
