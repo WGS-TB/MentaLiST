@@ -1,9 +1,9 @@
 #!/usr/bin/env julia
+
 module MentaLiST
+
 using Lumberjack
-
 using ArgParse
-
 
 function kmerize_kmc(files, k, threads=1)
   filepath = ""
@@ -23,14 +23,14 @@ function kmerize_kmc(files, k, threads=1)
   try
     run(`kmc -k$k -t$threads -ci0 $filepath $outpath /tmp`)
   catch e
-      println("caught error $e")
-      exit(1)
+    println("caught error $e")
+    exit(1)
   end
   try
     run(`kmc_tools transform $outpath dump $outpath`)
   catch e
-      println("caught error $e")
-      exit(1)
+    println("caught error $e")
+    exit(1)
   end
   return outpath
 end
