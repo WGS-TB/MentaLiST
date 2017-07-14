@@ -1,3 +1,4 @@
+#!/usr/bin/env julia
 module MentaLiST
 using Lumberjack
 
@@ -33,9 +34,13 @@ function parse_commandline()
       "build_db"
         help = "Build a MLST k-mer database, given a list of FASTA files."
         action = :command
-      "pubmlst"
+      "download_pubmlst"
         help = "Dowload a MLST scheme from pubmlst and build a MLST k-mer database."
         action = :command
+      "list_pubmlst"
+        help = "List all available MLST schema from pubmlst."
+        action = :command
+
     end
     # Calling MLST options:
     @add_arg_table s["call"] begin
@@ -74,7 +79,7 @@ function parse_commandline()
     end
     # Build DB from FASTA, options:
     @add_arg_table s["build_db"] begin
-        "-o"
+        "--db"
           help = "Output file (kmer database)"
           arg_type = String
           required = true
@@ -88,6 +93,30 @@ function parse_commandline()
             help = "Fasta files with the MLST scheme"
             required = true
     end
+    @add_arg_table s["list_pubmlst"] begin
+      "-p", "--prefix"
+      help = "Only list schema that starts with this prefix."
+      arg_type = String
+    end
+
+    @add_arg_table s["download_pubmlst"] begin
+      "-o", "--output"
+        help = "Output folder for the schema files."
+        arg_type = String
+        required = true
+      "-s", "--scheme"
+        help = "Name of the scheme (species)"
+        arg_type = String
+        required = true
+      "-k"
+        help = "K-mer size"
+        required = true
+        arg_type = Int8
+      "--db"
+        help = "Output file for the kmer database."
+        arg_type = String
+        required = true
+  end
 
     return parse_args(s)
 end
@@ -139,6 +168,18 @@ function call_mlst(args)
   info("Done.")
 end
 
+function list_pubmlst(args)
+  include("mlst_download_functions.jl")
+  list_pubmlst_schema(args["prefix"])
+end
+
+function download_pubmlst(args)
+  include("mlst_download_functions.jl")
+  loci_files = download_pubmlst_scheme(args["scheme"], args["output"])
+  info("Building the k-mer database ...")
+  args["files"] = loci_files
+  build_db(args)
+end
 
 function build_db(args)
   include("build_db_functions.jl")
@@ -151,7 +192,7 @@ function build_db(args)
   kmer_classification = combine_loci_classification(k, results, loci)
 
   info("Saving DB ...")
-  save_db(k, kmer_classification, loci, args["o"])
+  save_db(k, kmer_classification, loci, args["db"])
   info("Done!")
 end
 
@@ -162,8 +203,10 @@ function main()
     call_mlst(args["call"])
   elseif args["%COMMAND%"] == "build_db"
     build_db(args["build_db"])
-  elseif args["%COMMAND%"] == "pubmlst"
-    println("not implemented ...")
+  elseif args["%COMMAND%"] == "list_pubmlst"
+    list_pubmlst(args["list_pubmlst"])
+  elseif args["%COMMAND%"] == "download_pubmlst"
+    download_pubmlst(args["download_pubmlst"])
   end
 end
 
