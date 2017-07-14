@@ -20,8 +20,18 @@ function kmerize_kmc(files, k, threads=1)
     filepath = files[1]
   end
   # now run:
-  run(`kmc -k$k -t$threads -ci0 $filepath $outpath /tmp`)
-  run(`kmc_tools transform $outpath dump $outpath`)
+  try
+    run(`kmc -k$k -t$threads -ci0 $filepath $outpath /tmp`)
+  catch e
+      println("caught error $e")
+      exit(1)
+  end
+  try
+    run(`kmc_tools transform $outpath dump $outpath`)
+  catch e
+      println("caught error $e")
+      exit(1)
+  end
   return outpath
 end
 
