@@ -33,29 +33,37 @@ function _download_to_folder(url, output_dir, overwrite=false)
   return filepath
 end
 
+function _find_publmst_species(xml_xroot, target_species)
+  for species in xml_xroot["species"]
+    sp_name = _get_first_line(species)
+    # mlst_path = joinpath(output_dir,sp_name)
+    if sp_name == target_species
+      return(species)
+    end
+  end
+end
+
 function download_pubmlst_scheme(target_species, output_dir, overwrite=false)
   loci_files = String[]
   xroot = root(_pubmlst_xml())
   info("Searching for the scheme ... ")
-  for species in xroot["species"]
-    sp_name = _get_first_line(species)
-    # mlst_path = joinpath(output_dir,sp_name)
-    if sp_name != target_species
-      continue
-    end
-    info("Downloading ...")
-    mkpath(output_dir)
-    db = species["mlst"][1]["database"][1]
-    profile_url = content(db["profiles"][1]["url"][1])
-    _download_to_folder(profile_url, output_dir, overwrite)
-    for locus in db["loci"][1]["locus"]
-      locus_name = _get_first_line(locus)
-      info("Downloading locus $locus_name ...")
-      locus_url = content(locus["url"][1])
-      filepath = _download_to_folder(locus_url, output_dir)
-      push!(loci_files, filepath)
-    end
+  species = _find_publmst_species(xroot, target_species)
+  if species == nothing
+    error("Species not found on pubmlst, please check the spelling and try again.")
+    return
+  end
+  mkpath(output_dir)
+  db = species["mlst"][1]["database"][1]
+  info("Downloading profile ...")
+  profile_url = content(db["profiles"][1]["url"][1])
+  profile_file = _download_to_folder(profile_url, output_dir, overwrite)
+  for locus in db["loci"][1]["locus"]
+    locus_name = _get_first_line(locus)
+    info("Downloading locus $locus_name ...")
+    locus_url = content(locus["url"][1])
+    filepath = _download_to_folder(locus_url, output_dir)
+    push!(loci_files, filepath)
   end
   info("Finished downloading.")
-  return loci_files
+  return (loci_files, profile_file)
 end

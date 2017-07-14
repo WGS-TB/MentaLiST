@@ -128,7 +128,7 @@ end
 # sizeof(alleles_list) = 10382740024 = 9.6 GB
 # sizeof(allele_ids_per_locus) = 17769664 = 16 MB.
 
-function save_db(k, kmer_db, loci, filename)
+function save_db(k, kmer_db, loci, filename, profile)
   loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus = kmer_db
   d = Dict(
     "loci_list"=> Blosc.compress(loci_list),
@@ -153,7 +153,14 @@ function save_db(k, kmer_db, loci, filename)
       d[name] = Blosc.compress(alleles_list[s:e])
     end
   end
+  # mkdir:
+  mkpath(dirname(filename))
+  # database:
   JLD.save("$filename.jld", d)
+  # Profile:
+  if profile != nothing
+    cp(profile, "$filename.profile")
+  end
 end
 function open_db(filename)
   d = JLD.load("$filename.jld")
