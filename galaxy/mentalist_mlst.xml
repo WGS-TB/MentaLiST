@@ -1,7 +1,8 @@
-<tool id="mentalist_mlst" name="MentaLiST MLST Analysis" version="0.0.0">
+<tool id="mentalist_mlst" name="MentaLiST MLST Analysis" version="1.0.0">
     <command detect_errors="exit_code"><![CDATA[
     julia
-    '$__tool_directory__/MentaLiST.jl'
+    '$__tool_directory__/../src/MentaLiST.jl'
+    call
     -o '$output_file'
     -s '$sample_name'
     --db '$kmer_db'
@@ -14,12 +15,15 @@
     #if $external_counter
     '$external_counter'
     #end if
+    #if $skip_length
+    -j '$skip_length'
+    #end if
     $input_fastqs.forward $input_fastqs.reverse
     ]]></command>
     <inputs>
       <param name="sample_name" type="text"
 	     label="Sample Name" help="Sample Name" />
-      <param name="kmer_db" type="data" format="H5"
+      <param name="kmer_db" type="data" format="h5"
 	     label="Kmer DB" help="Kmer database" />
       <param name="discard_threshold" type="float"
 	     label="Discard Threshold" help="A read of length L is discarded if it has at less than (L - k) * t hits to the same locus in the kmer database, where k is the kmer length. 0 &lt;= t &lt;= 1"
@@ -30,6 +34,9 @@
       <param name="external_counter" type="boolean"
 	     label="External Kmer Counter" help="Use external kmc kmer counter. Disabled by default."
 	     truevalue="-e" falsevalue="" optional="true" />
+      <param name="skip_length" type="integer"
+	     label="Skip Length" help="Skip length between consecutive k-mers."
+	     value="1" min="1" max="32" />
       <param name="input_fastqs" type="data_collection" collection_type="paired" format="fastq"
 	     label="Input FastQ" help="FastQ input files" />
     </inputs>
@@ -37,7 +44,7 @@
       <data name="output_file" format="tsv"/>
     </outputs>
     <help><![CDATA[
-    usage: MentaLiST.jl -o O -s S --db DB [-t T] [-q] [-e] [-h] files...
+    usage: MentaLiST.jl call -o O -s S --db DB [-t T] [-q] [-e] [-j J] [-h] files...
 
     positional arguments:
     files       FastQ input files
@@ -54,6 +61,7 @@
                 read are not in the kmer DB, the read is discarded.
 		Disabled by default.
     -e          Use external kmc kmer counter. Disabled by default.
+    -j J        Skip length between consecutive k-mers. Defaults to 1.
     -h, --help  show this help message and exit
     ]]></help>
     <citations>
