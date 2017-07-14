@@ -1,0 +1,5 @@
+julia -e 'Pkg.add("Bio")'
+julia -e 'Pkg.add("OpenGene")'
+julia -e 'Pkg.add("Logging")'
+julia -e 'Pkg.add("ArgParse")'
+julia -e 'Pkg.add("Lumberjack")'
