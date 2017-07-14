@@ -128,7 +128,7 @@ end
 # sizeof(alleles_list) = 10382740024 = 9.6 GB
 # sizeof(allele_ids_per_locus) = 17769664 = 16 MB.
 
-function save_db(k, kmer_db, loci, filename)
+function save_db(k, kmer_db, loci, filename, profile)
   loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus = kmer_db
   d = Dict(
     "loci_list"=> Blosc.compress(loci_list),
@@ -153,9 +153,32 @@ function save_db(k, kmer_db, loci, filename)
       d[name] = Blosc.compress(alleles_list[s:e])
     end
   end
+  # mkdir:
+  mkpath(dirname(filename))
+  # database:
   JLD.save("$filename.jld", d)
+  # Profile:
+  if profile != nothing
+    cp(profile, "$filename.profile")
+  end
 end
 function open_db(filename)
+  # profile:
+  profile = nothing
+  if isfile("$filename.profile")
+    types = Array{Int}[]
+    open("$filename.profile") do f
+      header = split(readline(f),"\t")
+      for l in eachline(f)
+        values = map(x->parse(Int64,x),split(strip(l),"\t"))
+        # println(values)
+        push!(types, values)
+      end
+      profile = Dict("header"=>header, "types"=>types)
+    end
+  end
+
+  # Compressed database, open and decompress/decode in memory:
   d = JLD.load("$filename.jld")
   # alleles_list might be split into smaller parts:
   alleles_list = []
@@ -210,19 +233,32 @@ function open_db(filename)
       push!(kmer_classification[kmer], (locus_idx, weight, current_allele_list))
     end
   end
-  return kmer_classification, loci, loci2alleles, k
+  return kmer_classification, loci, loci2alleles, k, profile
 end
 
-function write_calls(votes, loci, loci2alleles, sample, filename)
+function _find_profile(alleles, profile)
+  for genotype in profile["types"]
+    # first element is the type id, all the rest is the actual genotype:
+    if alleles == genotype[2:end]
+      return genotype[1]
+    end
+  end
+  return 0
+end
+
+function write_calls(votes, loci, loci2alleles, sample, filename, profile)
   # get best voted:
   best_voted_alleles = [sort(collect(votes[idx]), by=x->-x[2])[1][1] for (idx,locus) in enumerate(loci)]
   # translate alleles to original id:
   best_voted_alleles = [loci2alleles[locus_idx][best] for (locus_idx, best) in enumerate(best_voted_alleles)]
+  # check if there is a type on the database:
+  genotype = _find_profile(best_voted_alleles, profile)
+
+  # write:
   open(filename, "w") do f
-    header = join(vcat(["Sample"], loci, ["ClonalComplex"]), "\t")
+    header = join(vcat(["Sample"], loci, ["ST"]), "\t")
     write(f,  "$header\n")
-    # todo: look in the database for the type, to assing a 'ClonalComplex'
-    calls = join(vcat([sample], best_voted_alleles, ["0"]), "\t")
+    calls = join(vcat([sample], best_voted_alleles, ["$genotype"]), "\t")
     write(f, "$calls\n")
   end
   # debug votes, find ties:

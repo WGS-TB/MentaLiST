@@ -97,11 +97,14 @@ function parse_commandline()
           help = "Kmer size"
           required = true
           arg_type = Int8
-        "files"
+        "-f", "--fasta_files"
             nargs = '*'
             arg_type = String
             help = "Fasta files with the MLST scheme"
             required = true
+        "-p", "--profile"
+            arg_type = String
+            help = "Profile file for known genotypes."
     end
     @add_arg_table s["list_pubmlst"] begin
       "-p", "--prefix"
@@ -134,7 +137,7 @@ end
 function call_mlst(args)
   include("build_db_functions.jl")
   info("Opening kmer database ... ")
-  kmer_db, loci, loci2alleles, k = open_db(args["db"])
+  kmer_db, loci, loci2alleles, k, profile = open_db(args["db"])
   # 0 votes for all alleles everyone at the start:
   votes = Dict(locus_idx => Dict{Int16, Int}(i => 0 for i in 1:length(alleles)) for (locus_idx,alleles) in loci2alleles)
   if args["e"] # external kmer counter:
@@ -174,7 +177,7 @@ function call_mlst(args)
     end
   end
   info("Writing output ...")
-  write_calls(votes, loci, loci2alleles, args["s"], args["o"])
+  write_calls(votes, loci, loci2alleles, args["s"], args["o"], profile)
   info("Done.")
 end
 
@@ -185,9 +188,10 @@ end
 
 function download_pubmlst(args)
   include("mlst_download_functions.jl")
-  loci_files = download_pubmlst_scheme(args["scheme"], args["output"])
+  loci_files, profile_file = download_pubmlst_scheme(args["scheme"], args["output"])
   info("Building the k-mer database ...")
-  args["files"] = loci_files
+  args["fasta_files"] = loci_files
+  args["profile"] = profile_file
   build_db(args)
 end
 
@@ -196,13 +200,13 @@ function build_db(args)
   k::Int8 = args["k"]
 
   info("Opening FASTA files ... ")
-  results, loci = kmer_class_for_each_locus(k, args["files"])
+  results, loci = kmer_class_for_each_locus(k, args["fasta_files"])
   # Combine results:
   info("Combining results for each locus ...")
   kmer_classification = combine_loci_classification(k, results, loci)
 
   info("Saving DB ...")
-  save_db(k, kmer_classification, loci, args["db"])
+  save_db(k, kmer_classification, loci, args["db"], args["profile"])
   info("Done!")
 end
 
