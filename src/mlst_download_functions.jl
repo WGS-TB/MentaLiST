@@ -1,5 +1,8 @@
-using LightXML
-import GZip
+using Suppressor
+@suppress_err begin
+  using LightXML
+  import GZip
+end
 
 function _get_first_line(node)
   return split(content(node), "\n")[1]

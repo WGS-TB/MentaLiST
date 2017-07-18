@@ -1,10 +1,12 @@
+using Suppressor
+@suppress_err begin
 using Bio.Seq
 using DataStructures
 import GZip
 import JLD
 import Blosc
 using OpenGene
-
+end
 
 function complement_alleles(vector, m)
   comp_vector = Int16[]

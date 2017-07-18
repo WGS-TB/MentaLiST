@@ -1,9 +1,11 @@
 #!/usr/bin/env julia
-
 module MentaLiST
 
+using Suppressor
+@suppress_err begin
 using Lumberjack
 using ArgParse
+end
 
 function kmerize_kmc(files, k, threads=1)
   filepath = ""
