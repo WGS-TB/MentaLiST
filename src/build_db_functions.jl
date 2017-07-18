@@ -123,11 +123,6 @@ function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String)
   return kmer_class, allele_ids
 end
 
-# sizeof(loci_list) = 48032
-# sizeof(weight_list) = 54020613 = 51 MB
-# sizeof(alleles_list) = 10382740024 = 9.6 GB
-# sizeof(allele_ids_per_locus) = 17769664 = 16 MB.
-
 function save_db(k, kmer_db, loci, filename, profile)
   loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus = kmer_db
   d = Dict(
@@ -159,7 +154,7 @@ function save_db(k, kmer_db, loci, filename, profile)
   JLD.save("$filename.jld", d)
   # Profile:
   if profile != nothing
-    cp(profile, "$filename.profile")
+    cp(profile, "$filename.profile", remove_destination=true)
   end
 end
 function open_db(filename)

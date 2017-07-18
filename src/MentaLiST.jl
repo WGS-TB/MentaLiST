@@ -44,12 +44,18 @@ function parse_commandline()
       "build_db"
         help = "Build a MLST k-mer database, given a list of FASTA files."
         action = :command
+      "list_pubmlst"
+        help = "List all available MLST schema from www.pubmlst.org. "
+        action = :command
       "download_pubmlst"
         help = "Dowload a MLST scheme from pubmlst and build a MLST k-mer database."
         action = :command
-      "list_pubmlst"
-        help = "List all available MLST schema from pubmlst."
+      "list_cgmlst"
+        help = "List all available cgMLST schema from www.cgmlst.org."
         action = :command
+      "download_cgmlst"
+          help = "Dowload a MLST scheme from cgmlst.org and build a MLST k-mer database."
+          action = :command
 
     end
     # Calling MLST options:
@@ -98,7 +104,7 @@ function parse_commandline()
           required = true
           arg_type = Int8
         "-f", "--fasta_files"
-            nargs = '*'
+            nargs = '+'
             arg_type = String
             help = "Fasta files with the MLST scheme"
             required = true
@@ -107,6 +113,12 @@ function parse_commandline()
             help = "Profile file for known genotypes."
     end
     @add_arg_table s["list_pubmlst"] begin
+      "-p", "--prefix"
+      help = "Only list schema that starts with this prefix."
+      arg_type = String
+    end
+
+    @add_arg_table s["list_cgmlst"] begin
       "-p", "--prefix"
       help = "Only list schema that starts with this prefix."
       arg_type = String
@@ -129,11 +141,32 @@ function parse_commandline()
         help = "Output file for the kmer database."
         arg_type = String
         required = true
-  end
+    end
+
+    @add_arg_table s["download_cgmlst"] begin
+      "-o", "--output"
+        help = "Output folder for the schema files."
+        arg_type = String
+        required = true
+      "-s", "--scheme"
+        help = "Species or ID of the scheme"
+        arg_type = String
+        required = true
+      "-k"
+        help = "K-mer size"
+        required = true
+        arg_type = Int8
+      "--db"
+        help = "Output file for the kmer database."
+        arg_type = String
+        required = true
+    end
 
     return parse_args(s)
 end
 
+
+#### Main COMMAND functions:
 function call_mlst(args)
   include("build_db_functions.jl")
   info("Opening kmer database ... ")
@@ -195,10 +228,33 @@ function download_pubmlst(args)
   build_db(args)
 end
 
+function list_cgmlst(args)
+  include("mlst_download_functions.jl")
+  list_cgmlst_schema(args["prefix"])
+end
+
+function download_cgmlst(args)
+  include("mlst_download_functions.jl")
+  loci_files = download_cgmlst_scheme(args["scheme"], args["output"])
+  info("Building the k-mer database ...")
+  args["fasta_files"] = loci_files
+  args["profile"] = nothing
+  build_db(args)
+end
+
+
+# function download_pubmlst(args)
+#   include("mlst_download_functions.jl")
+#   loci_files, profile_file = download_pubmlst_scheme(args["scheme"], args["output"])
+#   info("Building the k-mer database ...")
+#   args["fasta_files"] = loci_files
+#   args["profile"] = profile_file
+#   build_db(args)
+# end
+
 function build_db(args)
   include("build_db_functions.jl")
   k::Int8 = args["k"]
-
   info("Opening FASTA files ... ")
   results, loci = kmer_class_for_each_locus(k, args["fasta_files"])
   # Combine results:
@@ -210,6 +266,7 @@ function build_db(args)
   info("Done!")
 end
 
+##### Main function: just calls the appropriate commands, with arguments:
 function main()
   args = parse_commandline()
   # determine command:
@@ -221,6 +278,10 @@ function main()
     list_pubmlst(args["list_pubmlst"])
   elseif args["%COMMAND%"] == "download_pubmlst"
     download_pubmlst(args["download_pubmlst"])
+  elseif args["%COMMAND%"] == "list_cgmlst"
+    list_cgmlst(args["list_cgmlst"])
+  elseif args["%COMMAND%"] == "download_cgmlst"
+    download_cgmlst(args["download_cgmlst"])
   end
 end
 
