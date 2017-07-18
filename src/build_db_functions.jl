@@ -163,12 +163,12 @@ function open_db(filename)
   # profile:
   profile = nothing
   if isfile("$filename.profile")
-    types = Array{Int}[]
+    types = Array{String}[]
     open("$filename.profile") do f
       header = split(readline(f),"\t")
       for l in eachline(f)
-        values = map(x->parse(Int64,x),split(strip(l),"\t"))
-        # println(values)
+        # values = map(x->parse(Int64,x),split(strip(l),"\t"))
+        values = split(strip(l),"\t")
         push!(types, values)
       end
       profile = Dict("header"=>header, "types"=>types)
@@ -234,13 +234,16 @@ function open_db(filename)
 end
 
 function _find_profile(alleles, profile)
+  l = length(alleles)
+  alleles_str = map(string,alleles)
   for genotype in profile["types"]
     # first element is the type id, all the rest is the actual genotype:
-    if alleles == genotype[2:end]
-      return genotype[1]
+    if alleles_str == genotype[2:1+l]
+      # assuming Clonal Complex after genotype, when present.
+      return genotype[1], length(genotype) >= l + 2 ? genotype[l+2] : ""
     end
   end
-  return 0
+  return 0,0
 end
 
 function write_calls(votes, loci, loci2alleles, sample, filename, profile)
@@ -249,13 +252,13 @@ function write_calls(votes, loci, loci2alleles, sample, filename, profile)
   # translate alleles to original id:
   best_voted_alleles = [loci2alleles[locus_idx][best] for (locus_idx, best) in enumerate(best_voted_alleles)]
   # check if there is a type on the database:
-  genotype = _find_profile(best_voted_alleles, profile)
+  genotype, clonal_complex = _find_profile(best_voted_alleles, profile)
 
   # write:
   open(filename, "w") do f
-    header = join(vcat(["Sample"], loci, ["ST"]), "\t")
+    header = join(vcat(["Sample"], loci, ["ST", "clonal_complex"]), "\t")
     write(f,  "$header\n")
-    calls = join(vcat([sample], best_voted_alleles, ["$genotype"]), "\t")
+    calls = join(vcat([sample], best_voted_alleles, ["$genotype", clonal_complex]), "\t")
     write(f, "$calls\n")
   end
   # debug votes, find ties:
