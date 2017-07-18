@@ -31,15 +31,17 @@ end
 
 function list_pubmlst_schema(prefix)
   xroot = root(_pubmlst_xml())
-  species_list = String[]
-  for species in xroot["species"]
+  scheme_list = Tuple{Int,String}[]
+  for (id,species) in enumerate(xroot["species"])
     sp_name = _get_first_line(species)
     if prefix == nothing || startswith(sp_name, prefix)
-      push!(species_list,sp_name)
+      push!(scheme_list,(id,sp_name))
     end
   end
-  println(join(species_list,"\n"))
-  println("$(length(species_list)) schema found.")
+  for (id, sp_name) in scheme_list
+    @printf "%-30s ID:%d\n" sp_name id
+  end
+  println("$(length(scheme_list)) schema found.")
 end
 
 
@@ -52,11 +54,10 @@ function _download_to_folder(url, output_dir, overwrite=false)
   return filepath
 end
 
-function _find_publmst_species(xml_xroot, target_species)
-  for species in xml_xroot["species"]
+function _find_publmst_species(xml_xroot, target_id)
+  for (id, species) in enumerate(xml_xroot["species"])
     sp_name = _get_first_line(species)
-    # mlst_path = joinpath(output_dir,sp_name)
-    if sp_name == target_species
+    if target_id == "$id" || target_id == sp_name
       return(species)
     end
   end
@@ -68,10 +69,11 @@ function download_pubmlst_scheme(target_species, output_dir, overwrite=false)
   info("Searching for the scheme ... ")
   species = _find_publmst_species(xroot, target_species)
   if species == nothing
-    Lumberjack.warning("Species not found on pubmlst, please check the spelling and try again.")
+    Lumberjack.warn("I did not found this scheme on pubmlst, please check the species spelling or the ID and try again.")
     exit(-1)
     return
   end
+  info("Downloading scheme for $(_get_first_line(species)) ... ")
   db = species["mlst"][1]["database"][1]
   info("Downloading profile ...")
   profile_url = content(db["profiles"][1]["url"][1])

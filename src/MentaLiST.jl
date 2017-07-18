@@ -132,7 +132,7 @@ function parse_commandline()
         arg_type = String
         required = true
       "-s", "--scheme"
-        help = "Name of the scheme (species)"
+        help = "Species name or ID of the scheme."
         arg_type = String
         required = true
       "-k"
@@ -151,7 +151,7 @@ function parse_commandline()
         arg_type = String
         required = true
       "-s", "--scheme"
-        help = "Species or ID of the scheme"
+        help = "Species name or ID of the scheme"
         arg_type = String
         required = true
       "-k"
