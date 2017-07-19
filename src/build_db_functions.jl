@@ -234,6 +234,9 @@ function open_db(filename)
 end
 
 function _find_profile(alleles, profile)
+  if profile == nothing
+    return 0,0
+  end
   l = length(alleles)
   alleles_str = map(string,alleles)
   for genotype in profile["types"]
@@ -271,7 +274,7 @@ function write_calls(votes, loci, loci2alleles, sample, filename, profile)
       votes_txt = join(["$a($b)" for (a,b) in sorted_vote[1:max_idx]],", ")
       write(f, "$locus\t$votes_txt\n")
       # ties:
-      if (sorted_vote[1][2] == sorted_vote[2][2])
+      if length(sorted_vote) > 1 && sorted_vote[1][2] == sorted_vote[2][2]
         # find all ties:
         tied_val = sorted_vote[1][2]
         current = 1
