@@ -1,4 +1,4 @@
-<tool id="mentalist_build_docker" name="MentaLiST Build DB (Docker)" version="1.0.0">
+<tool id="mentalist_build_docker" name="MentaLiST Build DB (Docker)" version="0.1.0">
     <requirements>
         <container type="docker">dfornika/mentalist</container>
     </requirements>
