@@ -1,4 +1,4 @@
-<tool id="mentalist_call" name="MentaLiST MLST Analysis" version="1.0.0">
+<tool id="mentalist_call" name="MentaLiST MLST Analysis" version="0.1.0">
     <command detect_errors="exit_code"><![CDATA[
     julia
     '$__tool_directory__/../src/MentaLiST.jl'
