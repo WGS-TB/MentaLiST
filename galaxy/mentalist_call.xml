@@ -12,9 +12,6 @@
     #if $quick_filter
     '$quick_filter'
     #end if
-    #if $external_counter
-    '$external_counter'
-    #end if
     #if $skip_length
     -j '$skip_length'
     #end if
@@ -31,9 +28,6 @@
       <param name="quick_filter" type="boolean"
 	     label="Quick Filter" help="Quick filter; if the first, middle and last kmers of a read are not in the kmer DB, the read is discarded. Disabled by default."
 	     truevalue="-q" falsevalue="" optional="true" />
-      <param name="external_counter" type="boolean"
-	     label="External Kmer Counter" help="Use external kmc kmer counter. Disabled by default."
-	     truevalue="-e" falsevalue="" optional="true" />
       <param name="skip_length" type="integer"
 	     label="Skip Length" help="Skip length between consecutive k-mers."
 	     value="1" min="1" max="32" />
@@ -44,7 +38,7 @@
       <data name="output_file" format="tsv"/>
     </outputs>
     <help><![CDATA[
-    usage: MentaLiST.jl call -o O -s S --db DB [-t T] [-q] [-e] [-j J] [-h] files...
+    usage: MentaLiST.jl call -o O -s S --db DB [-t T] [-q] [-j J] [-h] files...
 
     positional arguments:
     files       FastQ input files
@@ -60,7 +54,6 @@
     -q          Quick filter; if the first, middle and last kmers of a
                 read are not in the kmer DB, the read is discarded.
 		Disabled by default.
-    -e          Use external kmc kmer counter. Disabled by default.
     -j J        Skip length between consecutive k-mers. Defaults to 1.
     -h, --help  show this help message and exit
     ]]></help>
