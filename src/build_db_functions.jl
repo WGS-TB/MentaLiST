@@ -290,7 +290,7 @@ function write_calls(votes, loci, loci2alleles, sample, filename, profile)
   end
   # write ties:
   open("$filename.ties.txt", "w") do f
-    for (locus, tied_alleles) in ties
+    for (locus, tied_alleles) in sort(collect(ties), by=x->x[1])
       ties_txt = join(["$t" for t in tied_alleles],", ")
       write(f, "$locus\t$ties_txt\n")
     end
