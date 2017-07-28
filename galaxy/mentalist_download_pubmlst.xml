@@ -1,0 +1,36 @@
+<tool id="mentalist_download_pubmlst" name="MentaLiST Download (PubMLST)" version="0.1.1">
+    <command detect_errors="exit_code"><![CDATA[
+    MentaLiST.jl
+    download_pubmlst
+    -o '$schema_output_dir'
+    -s '$scheme'
+    -k '$kmer_size'
+    --db '$kmer_database'
+    ]]></command>
+    <inputs>
+      <param name="kmer_size" type="integer"
+	     label="Kmer size" help="Kmer size"
+	     value="31" min="1" max="32" />
+      <param name="profile" type="data" format="tsv" optional="true"
+	     label="Profile" help="Profile for known genotypes" />
+    </inputs>
+    <outputs>
+      <collection name="downloaded_schema" type="list">
+	<discover_datasets pattern="*.tfa" directory="schema_output_dir" />
+      </collection>
+      <data name="kmer_database" format="h5" />
+    </outputs>
+    <help><![CDATA[
+    usage: mentalist download_pubmlst -o OUTPUT -s SCHEME -k K --db DB [-h]
+
+    arguments:
+    -o, --output OUTPUT  Output folder for the schema files.
+    -s, --scheme SCHEME  Species name or ID of the scheme.
+    -k K                 K-mer size (type: Int8)
+    --db DB              Output file for the kmer database.
+    -h, --help           show this help message and exit
+    ]]></help>
+    <citations>
+      <citation></citation>
+    </citations>
+</tool>
