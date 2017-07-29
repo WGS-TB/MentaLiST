@@ -155,7 +155,7 @@ function save_db(k, kmer_db, loci, filename, profile)
   # mkdir:
   mkpath(dirname(filename))
   # database:
-  JLD.save("$filename.jld", d)
+  JLD.save("$filename", d)
   # Profile:
   if profile != nothing
     cp(profile, "$filename.profile", remove_destination=true)
@@ -178,7 +178,7 @@ function open_db(filename)
   end
 
   # Compressed database, open and decompress/decode in memory:
-  d = JLD.load("$filename.jld")
+  d = JLD.load("$filename")
   # alleles_list might be split into smaller parts:
   alleles_list = []
   if haskey(d, "alleles_list")
