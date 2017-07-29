@@ -4,6 +4,7 @@ using Bio.Seq
 using DataStructures
 import GZip
 import JLD
+import FileIO: File, @format_str
 import Blosc
 using OpenGene
 end
@@ -155,7 +156,7 @@ function save_db(k, kmer_db, loci, filename, profile)
   # mkdir:
   mkpath(dirname(filename))
   # database:
-  JLD.save("$filename", d)
+  JLD.save(File(format"JLD", "$filename"), d)
   # Profile:
   if profile != nothing
     cp(profile, "$filename.profile", remove_destination=true)
