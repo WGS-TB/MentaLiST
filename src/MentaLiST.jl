@@ -80,7 +80,7 @@ function parse_commandline()
           default = 0.2
           range_tester = x -> 0 <= x <= 1
         "-q"
-          help = "Quick filter; if middle kmer of a read are not in the kmer DB, the read is discarded. Disabled by default."
+          help = "Quick filter (MentaLiST FAST); if middle kmer of a read is not in the kmer DB, the read is discarded. Disabled by default."
           action = :store_true
         "-e"
           help = "Use external kmc kmer counter. Disabled by default."
