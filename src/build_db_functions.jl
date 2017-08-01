@@ -317,19 +317,23 @@ function get_votes_for_sequence{k}(::Type{DNAKmer{k}}, seq, kmer_db, threshold, 
   votes = Dict()
   # count locus hits, for filtering
   locus_hits = DefaultDict{Int16,Int16}(0)
-  for (pos, kmer) in each(DNAKmer{k}, DNASequence(seq), step)
-    kmer = canonical(kmer)
-    if haskey(kmer_db, kmer)
-      for (locus, val, alleles) in kmer_db[kmer]
-        locus_hits[locus] += 1
-        for allele in alleles
-          if !haskey(votes, locus)
-            votes[locus] = DefaultDict{Int16, Int16}(0)
+  try
+    for (pos, kmer) in each(DNAKmer{k}, DNASequence(seq), step)
+      kmer = canonical(kmer)
+      if haskey(kmer_db, kmer)
+        for (locus, val, alleles) in kmer_db[kmer]
+          locus_hits[locus] += 1
+          for allele in alleles
+            if !haskey(votes, locus)
+              votes[locus] = DefaultDict{Int16, Int16}(0)
+            end
+            votes[locus][allele] += val
           end
-          votes[locus][allele] += val
         end
       end
     end
+  catch # on any Error (bad formatting most likely) return false so read is ignored. 
+    return false, false
   end
   if isempty(votes)
     return false, false
