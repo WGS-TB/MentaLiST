@@ -113,6 +113,9 @@ function parse_commandline()
         "-p", "--profile"
             arg_type = String
             help = "Profile file for known genotypes."
+        "-c", "--compress"
+          help = "Compress the database, by storing only the most informative kmers."
+          action = :store_true
     end
     @add_arg_table s["list_pubmlst"] begin
       "-p", "--prefix"
@@ -143,6 +146,9 @@ function parse_commandline()
         help = "Output file for the kmer database."
         arg_type = String
         required = true
+      "-c", "--compress"
+        help = "Compress the database, by storing only the most informative kmers."
+        action = :store_true
     end
 
     @add_arg_table s["download_cgmlst"] begin
@@ -162,6 +168,9 @@ function parse_commandline()
         help = "Output file for the kmer database."
         arg_type = String
         required = true
+      "-c", "--compress"
+        help = "Compress the database, by storing only the most informative kmers."
+        action = :store_true
     end
 
     return parse_args(s)
@@ -258,7 +267,7 @@ function build_db(args)
   include("build_db_functions.jl")
   k::Int8 = args["k"]
   info("Opening FASTA files ... ")
-  results, loci = kmer_class_for_each_locus(k, args["fasta_files"])
+  results, loci = kmer_class_for_each_locus(k, args["fasta_files"], args["compress"])
   # Combine results:
   info("Combining results for each locus ...")
   kmer_classification = combine_loci_classification(k, results, loci)

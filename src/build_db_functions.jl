@@ -8,6 +8,7 @@ import FileIO: File, @format_str
 import Blosc
 using OpenGene
 end
+include("db_graph.jl")
 
 function complement_alleles(vector, m)
   comp_vector = Int16[]
@@ -61,7 +62,7 @@ function combine_loci_classification(k, results, loci)
   l2int = Dict{String,Int16}(locus => idx for (idx, locus) in enumerate(loci))
   weight::Int8 = 0
 
-  for (locus, kmer_class, allele_ids) in results
+  for (locus,kmer_class, allele_ids, kmer_weights) in results
     n_alleles = length(allele_ids)
     half = n_alleles/2
     n_kmers_in_class = 0
@@ -75,8 +76,10 @@ function combine_loci_classification(k, results, loci)
           continue
         end
         weight = -1
+        # weight = -kmer_weights[kmer]
       else
         weight = 1
+        # weight = kmer_weights[kmer]
       end
       push!(kmer_list, "$kmer")
       push!(weight_list, weight)
@@ -93,19 +96,25 @@ function combine_loci_classification(k, results, loci)
   return (loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus)
 end
 
-function kmer_class_for_each_locus(k::Int8, files::Vector{String})
+function kmer_class_for_each_locus(k::Int8, files::Vector{String}, compress::Bool)
   results = []
   loci = String[]
   for file in files
     locus::String = splitext(basename(file))[1]
     push!(loci, locus)
-    kmer_class, allele_ids = kmer_class_for_locus(DNAKmer{k}, file)
-    push!(results, (locus,kmer_class, allele_ids))
+    kmer_class, allele_ids, kmer_weights = kmer_class_for_locus(DNAKmer{k}, file, compress)
+    push!(results, (locus,kmer_class, allele_ids, kmer_weights))
   end
   return results, loci
 end
 
-function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String)
+function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String, compress::Bool)
+  # println("LOCUS:$fastafile")
+  allowed_kmers = []
+  if compress
+    # Find db graph contigs, and get 1st kmer of each:
+    allowed_kmers = db_graph_contig_kmers(DNAKmer{k}, [fastafile])
+  end
   record = FASTASeqRecord{BioSequence{DNAAlphabet{2}}}()
   kmer_class = DefaultDict{DNAKmer{k}, Vector{Int16}}(() -> Int16[])
   allele_ids = Int16[]
@@ -114,7 +123,11 @@ function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String)
       while !eof(reader)
           read!(reader, record)
           for (pos, kmer) in each(DNAKmer{k}, record.seq)
-            push!(kmer_class[canonical(kmer)], allele_idx)
+            can_kmer = canonical(kmer)
+            # if !compress || (can_kmer in allowed_kmers)
+            if !compress || (haskey(allowed_kmers,can_kmer))
+              push!(kmer_class[can_kmer], allele_idx)
+            end
           end
           # update idx; the counter idx is incremental (1,2, ...) because we need the array sorted.
           # But this is not always sin the allele ordering, so we have to save the original id to restore it later;
@@ -125,7 +138,7 @@ function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String)
           allele_idx += 1
       end
   end
-  return kmer_class, allele_ids
+  return kmer_class, allele_ids, allowed_kmers
 end
 
 function save_db(k, kmer_db, loci, filename, profile)
@@ -332,7 +345,7 @@ function get_votes_for_sequence{k}(::Type{DNAKmer{k}}, seq, kmer_db, threshold, 
         end
       end
     end
-  catch # on any Error (bad formatting most likely) return false so read is ignored. 
+  catch # on any Error (bad formatting most likely) return false so read is ignored.
     return false, false
   end
   if isempty(votes)
