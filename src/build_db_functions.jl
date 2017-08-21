@@ -46,7 +46,8 @@ function combine_loci_classification(k, results, loci)
   loci_list = Int32[]
 
   # +1 and -1 corresponding to the weight of the kmer:
-  weight_list = Int8[]
+  # weight_list = Int8[]
+  weight_list = Int16[]
 
   # n1, a_1, ..., a_n1, n2, b_1, ..., b_n2, ...
   # n1 is the number of alleles corresponding to the next kmer, a_1,...,a_n1 are
@@ -60,7 +61,8 @@ function combine_loci_classification(k, results, loci)
 
   # locus to int.
   l2int = Dict{String,Int16}(locus => idx for (idx, locus) in enumerate(loci))
-  weight::Int8 = 0
+  # weight::Int8 = 0
+  weight::Int16 = 0
 
   for (locus,kmer_class, allele_ids, kmer_weights) in results
     n_alleles = length(allele_ids)
@@ -75,11 +77,13 @@ function combine_loci_classification(k, results, loci)
         if isempty(allele_list)
           continue
         end
-        weight = -1
+        # weight = -1
         # weight = -kmer_weights[kmer]
+        weight = -get(kmer_weights, kmer, 1)
       else
-        weight = 1
+        # weight = 1
         # weight = kmer_weights[kmer]
+        weight = get(kmer_weights, kmer, 1)
       end
       push!(kmer_list, "$kmer")
       push!(weight_list, weight)
@@ -110,7 +114,7 @@ end
 
 function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String, compress::Bool)
   # println("LOCUS:$fastafile")
-  allowed_kmers = []
+  allowed_kmers = Dict()
   if compress
     # Find db graph contigs, and get 1st kmer of each:
     allowed_kmers = db_graph_contig_kmers(DNAKmer{k}, [fastafile])
@@ -207,7 +211,8 @@ function open_db(filename)
   k = d["k"]
   loci = d["loci"]
   loci_list = Blosc.decompress(Int32, d["loci_list"])
-  weight_list = Blosc.decompress(Int8, d["weight_list"])
+  # weight_list = Blosc.decompress(Int8, d["weight_list"])
+  weight_list = Blosc.decompress(Int16, d["weight_list"])
   allele_ids_per_locus = Blosc.decompress(Int, d["allele_ids_per_locus"])
   kmer_str = d["kmer_list"]
   # build a dict to transform allele idx (1,2,...) to original allele ids:
@@ -221,7 +226,8 @@ function open_db(filename)
     locus_idx += 1
   end
   # build the kmer db in the usual format:
-  kmer_classification = DefaultDict{DNAKmer{k}, Vector{Tuple{Int16, Int8, Vector{Int16}}}}(() -> Vector{Tuple{Int16, Int8, Vector{Int16}}}())
+  # kmer_classification = DefaultDict{DNAKmer{k}, Vector{Tuple{Int16, Int8, Vector{Int16}}}}(() -> Vector{Tuple{Int16, Int8, Vector{Int16}}}())
+  kmer_classification = DefaultDict{DNAKmer{k}, Vector{Tuple{Int16, Int16, Vector{Int16}}}}(() -> Vector{Tuple{Int16, Int16, Vector{Int16}}}())
   # tuple is locus idx, weight, and list of alleles;
   loci_list_idx = 1
   allele_list_idx = 1
