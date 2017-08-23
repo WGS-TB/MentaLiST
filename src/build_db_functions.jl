@@ -10,6 +10,43 @@ using OpenGene
 end
 include("db_graph.jl")
 
+function kmerize_kmc(files, k, threads=1, kmc_extra_params="")
+  filepath = ""
+  tmpdir = mktempdir(".")
+  outpath, fh = mktemp(".")
+  if length(files) > 1
+  # create a tmp file with all files:
+    filepath, f = mktemp()
+    for file in files
+      write(f, "$file\n")
+    end
+    filepath = "@$filepath"
+    close(f)
+  else
+    filepath = files[1]
+  end
+  # now run:
+  try
+    run(`kmc -k$k -t$threads -cs65000 $filepath $outpath $tmpdir`)
+  catch e
+    println("caught error $e")
+    exit(1)
+  end
+  try
+    run(`kmc_tools transform $outpath dump $outpath`)
+  catch e
+    println("caught error $e")
+    exit(1)
+  end
+  # remove tmpdir and tmp files:
+  rm(tmpdir)
+  rm("$outpath.kmc_pre")
+  rm("$outpath.kmc_suf")
+
+  return outpath
+end
+
+
 function complement_alleles(vector, m)
   comp_vector = Int16[]
   expected::Int16 = 1

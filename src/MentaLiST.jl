@@ -7,36 +7,6 @@ using Lumberjack
 using ArgParse
 end
 
-function kmerize_kmc(files, k, threads=1)
-  filepath = ""
-  outpath, fh = mktemp()
-  if length(files) > 1
-  # create a tmp file with all files:
-    filepath, f = mktemp()
-    for file in files
-      write(f, "$file\n")
-    end
-    filepath = "@$filepath"
-    close(f)
-  else
-    filepath = files[1]
-  end
-  # now run:
-  try
-    run(`kmc -k$k -t$threads -ci0 $filepath $outpath /tmp`)
-  catch e
-    println("caught error $e")
-    exit(1)
-  end
-  try
-    run(`kmc_tools transform $outpath dump $outpath`)
-  catch e
-    println("caught error $e")
-    exit(1)
-  end
-  return outpath
-end
-
 function parse_commandline()
     s = ArgParseSettings()
     @add_arg_table s begin
@@ -205,6 +175,8 @@ function call_mlst(args)
         end
       end
     end
+    # Remove temp kmer file:
+    # rm(kmer_count_file)
   else
     info("Opening fastq file(s) ... ")
     for f in args["files"]
@@ -252,16 +224,6 @@ function download_cgmlst(args)
   args["profile"] = nothing
   build_db(args)
 end
-
-
-# function download_pubmlst(args)
-#   include("mlst_download_functions.jl")
-#   loci_files, profile_file = download_pubmlst_scheme(args["scheme"], args["output"])
-#   info("Building the k-mer database ...")
-#   args["fasta_files"] = loci_files
-#   args["profile"] = profile_file
-#   build_db(args)
-# end
 
 function build_db(args)
   include("build_db_functions.jl")
