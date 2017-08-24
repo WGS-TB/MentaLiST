@@ -353,52 +353,50 @@ function write_calls(votes, loci, loci2alleles, sample, filename, profile)
     end
   end
 end
-
-function get_votes_for_sequence{k}(::Type{DNAKmer{k}}, seq, kmer_db, threshold, prefilter=false, step=1)
-  if length(seq) < k
-    return false, false
-  end
-  if prefilter  # stringMLST like pre_filter
-    try
-      half = div(length(seq)-k,2)
-      testmer = DNAKmer{k}(seq[half:half+k-1])
-      if !haskey(kmer_db, testmer)
-        return false, false
+function count_kmers_and_vote{k}(::Type{DNAKmer{k}}, files, kmer_db, loci2alleles)
+  # Count kmers:
+  kmer_count = DefaultDict{DNAKmer{k},Int}(0)
+  for f in files
+    istream = fastq_open(f)
+    while (fq = fastq_read(istream))!=false
+      for (pos, kmer) in each(DNAKmer{k}, DNASequence(fq.sequence.seq), 1)
+        kmer = canonical(kmer)
+        if haskey(kmer_db, kmer)
+          kmer_count[kmer] += 1
+        end
       end
-    catch LoadError
-       # if it has an ambiguous base (N), throws an exception; I will not filter in this case
-     end
+    end
   end
-  # count all votes:
-  votes = Dict()
-  # count locus hits, for filtering
-  locus_hits = DefaultDict{Int16,Int16}(0)
-  try
-    for (pos, kmer) in each(DNAKmer{k}, DNASequence(seq), step)
-      kmer = canonical(kmer)
+  # Now count votes:
+  # 0 votes for all alleles everyone at the start:
+  votes = Dict(locus_idx => Dict{Int16, Int}(i => 0 for i in 1:length(alleles)) for (locus_idx,alleles) in loci2alleles)
+  for (kmer, count) in kmer_count
+    if haskey(kmer_db, kmer)
+      for (locus, weight, alleles) in kmer_db[kmer]
+        v = weight * count
+        for allele in alleles
+          votes[locus][allele] += v
+        end
+      end
+    end
+  end
+  return votes
+end
+
+
+function count_kmc_votes{k}(::Type{DNAKmer{k}}, kmer_count_file, kmer_db, votes)
+  open(kmer_count_file) do f
+    for ln in eachline(f)
+      kmer, count = split(chomp(ln))
+      kmer = DNAKmer{k}(kmer)
       if haskey(kmer_db, kmer)
         for (locus, val, alleles) in kmer_db[kmer]
-          locus_hits[locus] += 1
+          v = val * parse(Int,count)
           for allele in alleles
-            if !haskey(votes, locus)
-              votes[locus] = DefaultDict{Int16, Int16}(0)
-            end
-            votes[locus][allele] += val
+            votes[locus][allele] += v
           end
         end
       end
     end
-  catch # on any Error (bad formatting most likely) return false so read is ignored.
-    return false, false
-  end
-  if isempty(votes)
-    return false, false
-  end
-  # check if locus hits are above the threshold for returning votes:
-  best_locus, n_hits = sort(collect(locus_hits), by=x->-x[2])[1]
-  if n_hits > (length(seq) - k) * threshold
-    return true, (best_locus, votes[best_locus])
-  else
-    return false, false
   end
 end

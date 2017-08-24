@@ -44,21 +44,6 @@ function parse_commandline()
           help = "Kmer database"
           required = true
           arg_type = String
-        "-t"
-          help = "A read of length L is discarded if it has at less than (L - k) * t hits to the same locus in the kmer database, where k is the kmer length. 0 <= t <= 1"
-          arg_type = Float64
-          default = 0.2
-          range_tester = x -> 0 <= x <= 1
-        "-q"
-          help = "Quick filter (MentaLiST FAST); if middle kmer of a read is not in the kmer DB, the read is discarded. Disabled by default."
-          action = :store_true
-        "-e"
-          help = "Use external kmc kmer counter. Disabled by default."
-          action = :store_true
-        "-j"
-          help = "Skip length between consecutive k-mers. Defaults to 1."
-          arg_type = Int
-          default = 1
         "files"
           nargs = '*'
           help = "FastQ input files"
@@ -152,46 +137,8 @@ function call_mlst(args)
   include("build_db_functions.jl")
   info("Opening kmer database ... ")
   kmer_db, loci, loci2alleles, k, profile = open_db(args["db"])
-  # 0 votes for all alleles everyone at the start:
-  votes = Dict(locus_idx => Dict{Int16, Int}(i => 0 for i in 1:length(alleles)) for (locus_idx,alleles) in loci2alleles)
-  if args["e"] # external kmer counter:
-    info("Running kmc ... ")
-    kmer_count_file = kmerize_kmc(args["files"], k)
-    info("Counting votes from kmc kmers ... ")
-    open(kmer_count_file) do f
-      for ln in eachline(f)
-        kmer, count = split(chomp(ln))
-        kmer = DNAKmer{k}(kmer)
-        if haskey(kmer_db, kmer)
-          for (locus, val, alleles) in kmer_db[kmer]
-            v = val * parse(Int,count)
-            for allele in alleles
-              if !haskey(votes, locus)
-                votes[locus] = DefaultDict{Int16, Int16}(0)
-              end
-              votes[locus][allele] += v
-            end
-          end
-        end
-      end
-    end
-    # Remove temp kmer file:
-    # rm(kmer_count_file)
-  else
-    info("Opening fastq file(s) ... ")
-    for f in args["files"]
-      istream = fastq_open(f)
-      while (fq = fastq_read(istream))!=false
-        good, locus_to_allele_votes = get_votes_for_sequence(DNAKmer{k}, fq.sequence.seq, kmer_db, args["t"], args["q"], args["j"])
-        if good
-          locus, allele_votes = locus_to_allele_votes
-          for (allele, val) in allele_votes
-            votes[locus][allele] += val
-          end
-        end
-      end
-    end
-  end
+  info("Opening fastq file(s) ... ")
+  votes = count_kmers_and_vote(DNAKmer{k}, args["files"], kmer_db, loci2alleles)
   info("Writing output ...")
   write_calls(votes, loci, loci2alleles, args["s"], args["o"], profile)
   info("Done.")
