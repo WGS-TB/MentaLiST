@@ -10,43 +10,6 @@ using OpenGene
 end
 include("db_graph.jl")
 
-function kmerize_kmc(files, k, threads=1, kmc_extra_params="")
-  filepath = ""
-  tmpdir = mktempdir(".")
-  outpath, fh = mktemp(".")
-  if length(files) > 1
-  # create a tmp file with all files:
-    filepath, f = mktemp()
-    for file in files
-      write(f, "$file\n")
-    end
-    filepath = "@$filepath"
-    close(f)
-  else
-    filepath = files[1]
-  end
-  # now run:
-  try
-    run(`kmc -k$k -t$threads -cs65000 $filepath $outpath $tmpdir`)
-  catch e
-    println("caught error $e")
-    exit(1)
-  end
-  try
-    run(`kmc_tools transform $outpath dump $outpath`)
-  catch e
-    println("caught error $e")
-    exit(1)
-  end
-  # remove tmpdir and tmp files:
-  rm(tmpdir)
-  rm("$outpath.kmc_pre")
-  rm("$outpath.kmc_suf")
-
-  return outpath
-end
-
-
 function complement_alleles(vector, m)
   comp_vector = Int16[]
   expected::Int16 = 1
@@ -114,12 +77,8 @@ function combine_loci_classification(k, results, loci)
         if isempty(allele_list)
           continue
         end
-        # weight = -1
-        # weight = -kmer_weights[kmer]
         weight = -get(kmer_weights, kmer, 1)
       else
-        # weight = 1
-        # weight = kmer_weights[kmer]
         weight = get(kmer_weights, kmer, 1)
       end
       push!(kmer_list, "$kmer")
@@ -150,7 +109,6 @@ function kmer_class_for_each_locus(k::Int8, files::Vector{String}, compress::Boo
 end
 
 function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String, compress::Bool)
-  # println("LOCUS:$fastafile")
   allowed_kmers = Dict()
   if compress
     # Find db graph contigs, and get 1st kmer of each:
@@ -262,7 +220,6 @@ function open_db(filename)
     locus_idx += 1
   end
   # build the kmer db in the usual format:
-  # kmer_classification = DefaultDict{DNAKmer{k}, Vector{Tuple{Int16, Int8, Vector{Int16}}}}(() -> Vector{Tuple{Int16, Int8, Vector{Int16}}}())
   kmer_classification = DefaultDict{DNAKmer{k}, Vector{Tuple{Int16, Int16, Vector{Int16}}}}(() -> Vector{Tuple{Int16, Int16, Vector{Int16}}}())
   # tuple is locus idx, weight, and list of alleles;
   loci_list_idx = 1
@@ -307,7 +264,7 @@ function _find_profile(alleles, profile)
   return 0,0
 end
 
-function write_calls(votes, loci, loci2alleles, sample, filename, profile)
+function write_calls(votes, loci_votes, loci, loci2alleles, sample, filename, profile)
   # get best voted:
   best_voted_alleles = [sort(collect(votes[idx]), by=x->-x[2])[1][1] for (idx,locus) in enumerate(loci)]
   # translate alleles to original id:
@@ -322,15 +279,18 @@ function write_calls(votes, loci, loci2alleles, sample, filename, profile)
     calls = join(vcat([sample], best_voted_alleles, ["$genotype", clonal_complex]), "\t")
     write(f, "$calls\n")
   end
-  # debug votes, find ties:
+  # votes, find ties:
   ties = Dict{String,Vector{Int16}}()
   open("$filename.votes.txt", "w") do f
-    write(f, "Locus\tAllele(votes),...\n")
+    # write(f, "Locus\tAllele(votes),...\n")
+    write(f, "Locus\tTotalVotes\tTopVote\tAllele(votes),...\n")
     for (idx,locus) in enumerate(loci)
       max_idx = min(length(votes[idx]),10)
       sorted_vote = sort(collect(votes[idx]), by=x->-x[2])
-      votes_txt = join(["$a($b)" for (a,b) in sorted_vote[1:max_idx]],", ")
-      write(f, "$locus\t$votes_txt\n")
+      top_vote = sorted_vote[1][2] + (sorted_vote[end][2] < 0 ? abs(sorted_vote[end][2]) : 0)
+      votes_txt = join(["$a($b)" for (a,b) in sorted_vote],",")
+      # votes_txt = join(["$a($b)" for (a,b) in sorted_vote[1:max_idx]],",")
+      write(f, "$locus\t$(loci_votes[idx])\t$top_vote\t$votes_txt\n")
       # ties:
       if length(sorted_vote) > 1 && sorted_vote[1][2] == sorted_vote[2][2]
         # find all ties:
@@ -369,33 +329,19 @@ function count_kmers_and_vote{k}(::Type{DNAKmer{k}}, files, kmer_db, loci2allele
   # Now count votes:
   # 0 votes for all alleles everyone at the start:
   votes = Dict(locus_idx => Dict{Int16, Int}(i => 0 for i in 1:length(alleles)) for (locus_idx,alleles) in loci2alleles)
+  # votes per locus, to decide presence/absence:
+  loci_votes = DefaultDict{Int16, Int}(0)
   for (kmer, count) in kmer_count
     if haskey(kmer_db, kmer)
       for (locus, weight, alleles) in kmer_db[kmer]
         v = weight * count
+        loci_votes[locus] += abs(v)
         for allele in alleles
           votes[locus][allele] += v
         end
       end
     end
   end
-  return votes
-end
 
-
-function count_kmc_votes{k}(::Type{DNAKmer{k}}, kmer_count_file, kmer_db, votes)
-  open(kmer_count_file) do f
-    for ln in eachline(f)
-      kmer, count = split(chomp(ln))
-      kmer = DNAKmer{k}(kmer)
-      if haskey(kmer_db, kmer)
-        for (locus, val, alleles) in kmer_db[kmer]
-          v = val * parse(Int,count)
-          for allele in alleles
-            votes[locus][allele] += v
-          end
-        end
-      end
-    end
-  end
+  return votes, loci_votes
 end

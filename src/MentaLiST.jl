@@ -138,9 +138,9 @@ function call_mlst(args)
   info("Opening kmer database ... ")
   kmer_db, loci, loci2alleles, k, profile = open_db(args["db"])
   info("Opening fastq file(s) ... ")
-  votes = count_kmers_and_vote(DNAKmer{k}, args["files"], kmer_db, loci2alleles)
+  votes, loci_votes = count_kmers_and_vote(DNAKmer{k}, args["files"], kmer_db, loci2alleles)
   info("Writing output ...")
-  write_calls(votes, loci, loci2alleles, args["s"], args["o"], profile)
+  write_calls(votes, loci_votes, loci, loci2alleles, args["s"], args["o"], profile)
   info("Done.")
 end
 
