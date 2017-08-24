@@ -224,7 +224,6 @@ function open_db(filename)
     open("$filename.profile") do f
       header = split(readline(f),"\t")
       for l in eachline(f)
-        # values = map(x->parse(Int64,x),split(strip(l),"\t"))
         values = split(strip(l),"\t")
         push!(types, values)
       end
