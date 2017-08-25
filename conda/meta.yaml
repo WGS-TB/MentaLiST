@@ -1,10 +1,10 @@
 package:
   name: mentalist
-  version: 0.1.1
+  version: 0.1.2
 
 source:
   git_url: https://github.com/WGS-TB/MentaLiST.git
-  git_rev: v0.1.1
+  git_rev: v0.1.2
   folder: MentaLiST
 
 requirements:

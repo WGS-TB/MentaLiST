@@ -1,4 +1,4 @@
-<tool id="mentalist_build" name="MentaLiST Build DB" version="0.1.1">
+<tool id="mentalist_build" name="MentaLiST Build DB" version="0.1.2">
     <command detect_errors="exit_code"><![CDATA[
     MentaLiST.jl
     build_db
