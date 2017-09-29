@@ -38,10 +38,11 @@ function list_pubmlst_schema(prefix)
       push!(scheme_list,(id,sp_name))
     end
   end
+  println("#id\torganism")
   for (id, sp_name) in scheme_list
-    @printf "%-30s ID:%d\n" sp_name id
+    @printf "%d\t%-30s\n" id sp_name
   end
-  println("$(length(scheme_list)) schema found.")
+  info("$(length(scheme_list)) schema found.")
 end
 
 
@@ -107,14 +108,15 @@ end
 
 
 function list_cgmlst_schema(prefix)
+  println("#id\torganism")
   count = 0
   for (id, species) in available_cgmlst_schema()
     if prefix == nothing || startswith(species,prefix)
       count += 1
-      @printf "%-30s - ID:%s\n" species id
+      @printf "%s\t%-30s\n" id species
     end
   end
-  println("$count schema found.")
+  info("$count schema found.")
 end
 
 function _find_cgmlst_id(target_id)
