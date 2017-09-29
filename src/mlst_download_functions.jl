@@ -13,7 +13,7 @@ function _older_than_a_day(file)
 end
 function _pubmlst_xml()
   if !isfile("dbases.xml") || _older_than_a_day("dbases.xml")
-    info("Downloading the MLST database xml file...")
+    info(STDERR, "Downloading the MLST database xml file...")
     download("https://pubmlst.org/data/dbases.xml", "dbases.xml")
   end
   # get
@@ -22,7 +22,7 @@ end
 
 function _cgmlst_http()
   if !isfile("cgmlst.html")
-    info("Downloading the cgmlist HTML to find schema...")
+    info(STDERR, "Downloading the cgmlist HTML to find schema...")
     download("www.cgmlst.org/ncs", "cgmlst.html")
   end
   return "cgmlst.html"
@@ -42,7 +42,7 @@ function list_pubmlst_schema(prefix)
   for (id, sp_name) in scheme_list
     @printf "%d\t%-30s\n" id sp_name
   end
-  info("$(length(scheme_list)) schema found.")
+  info(STDERR, "$(length(scheme_list)) schema found.")
 end
 
 
@@ -67,10 +67,10 @@ end
 function download_pubmlst_scheme(target_species, output_dir, overwrite=false)
   loci_files = String[]
   xroot = root(_pubmlst_xml())
-  info("Searching for the scheme ... ")
+  info(STDERR, "Searching for the scheme ... ")
   species = _find_publmst_species(xroot, target_species)
   if species == nothing
-    Lumberjack.warn("I did not found this scheme on pubmlst, please check the species spelling or the ID and try again.")
+    Lumberjack.warn("I did not find this scheme on pubmlst, please check the species spelling or the ID and try again.")
     exit(-1)
     return
   end
@@ -116,7 +116,7 @@ function list_cgmlst_schema(prefix)
       @printf "%s\t%-30s\n" id species
     end
   end
-  info("$count schema found.")
+  info(STDERR, "$count schema found.")
 end
 
 function _find_cgmlst_id(target_id)
