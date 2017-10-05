@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<tool id="mentalist_build" name="MentaLiST Build DB" tool_type="manage_data" version="0.1.2">
+  <requirements>
+    <requirement type="package" version="0.1.2">mentalist</requirement>
+  </requirements>
+  <command detect_errors="exit_code">
+  <![CDATA[
+	   mkdir mentalist-database && cd mentalist-database &&
+	   MentaLiST.jl
+	   build_db
+	   --db '$kmer_database'
+	   -k '$kmer_size'
+	   #if $profile
+	   -p '$profile'
+	   #end if
+	   -f ${" ".join(map(str, $input_fastas))} &&
+	   cd .. &&
+	   python '$__tool_directory__/make_json.py' --db '${database_name}' --out '${out_file}'
+  ]]>
+  </command>
+  <inputs>
+    <param name="kmer_size" type="integer"
+	   label="Kmer size" help="Kmer size"
+	   value="31" min="1" max="32" />
+    <param name="input_fastas" type="data_collection" collection_type="list" format="fasta" multiple="true"
+	   label="Input Fasta" help="Fasta input files" />
+    <param name="profile" type="data" format="tsv" optional="true"
+	   label="Profile" help="Profile for known genotypes" />
+  </inputs>
+  <outputs>
+    <data name="out_file" format="data_manager_json" />
+  </outputs>
+  <citations>
+    <citation type="doi">10.1101/172858</citation>
+  </citations>
+</tool>

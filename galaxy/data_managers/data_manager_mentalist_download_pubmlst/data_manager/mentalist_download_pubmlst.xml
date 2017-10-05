@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<tool id="mentalist_download_pubmlst" name="MentaLiST Download pubMLST" tool_type="manage_data" version="0.1.2">
+  <requirements>
+    <requirement type="package" version="0.1.2">mentalist</requirement>
+  </requirements>
+  <command detect_errors="exit_code">
+  <![CDATA[
+	   mkdir mentalist-database && cd mentalist-database &&
+	   MentaLiST.jl
+	   download_pubmlst
+	   --db '$kmer_database'
+	   --scheme '$scheme'
+	   -k '$kmer_size'
+	   cd .. &&
+	   python '$__tool_directory__/make_json.py' --db '${database_name}' --out '${out_file}'
+  ]]>
+  </command>
+  <inputs>
+    <param name="kmer_size" type="integer"
+	   label="Kmer size" help="Kmer size"
+	   value="31" min="1" max="32" />
+    <param name="scheme" type="text" label="Species name or ID of scheme" />
+  </inputs>
+  <outputs>
+    <data name="out_file" format="data_manager_json" />
+  </outputs>
+  <citations>
+    <citation type="doi">10.1101/172858</citation>
+  </citations>
+</tool>
