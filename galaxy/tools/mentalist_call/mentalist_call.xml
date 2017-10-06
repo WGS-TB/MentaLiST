@@ -1,0 +1,41 @@
+<tool id="mentalist_call" name="MentaLiST MLST Analysis" version="0.1.2">
+  <requirements>
+    <requirement type="package" version="0.1.2">mentalist</requirement>
+  </requirements>
+  <command detect_errors="exit_code"><![CDATA[
+    mentalist
+    call
+    -o '$output_file'
+    -s '$sample_name'
+    --db '$kmer_db.fields.path'
+    #if $discard_threshold
+        -t '$discard_threshold'
+    #end if
+    $input_fastqs.forward $input_fastqs.reverse
+  ]]></command>
+  <inputs>
+    <param name="sample_name" type="text"
+	   label="Sample Name" help="Sample Name" />
+    <param name="kmer_db" type="select">
+      <options from_data_table="mentalist_databases">
+	<validator type="no_options" message="No MentaLiST databases are available" />
+      </options>
+    </param>
+    <param name="discard_threshold" type="float"
+	   label="Discard Threshold" help="A read of length L is discarded if it has at less than (L - k) * t hits to the same locus in the kmer database, where k is the kmer length. 0 &lt;= t &lt;= 1"
+	   value="0.3" min="0" max="1" />
+    <param name="skip_length" type="integer"
+	   label="Skip Length" help="Skip length between consecutive k-mers."
+	   value="1" min="1" max="32" />
+    <param name="input_fastqs" type="data_collection" collection_type="paired" format="fastq"
+	   label="Input FastQ" help="FastQ input files" />
+  </inputs>
+  <outputs>
+    <data name="output_file" format="tsv"/>
+  </outputs>
+  <help><![CDATA[
+  ]]></help>
+  <citations>
+    <citation type="doi">10.1101/172858</citation>
+  </citations>
+</tool>
