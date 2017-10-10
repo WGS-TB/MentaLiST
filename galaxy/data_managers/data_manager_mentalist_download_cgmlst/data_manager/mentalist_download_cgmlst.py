@@ -11,7 +11,7 @@ from json import dumps, loads
 DEFAULT_DATA_TABLE_NAMES = ["mentalist_databases"]
 
 
-def mentalist_download_pubmlst( data_manager_dict, database_name, kmer_size, scheme, output, params, target_directory, data_table_names=DEFAULT_DATA_TABLE_NAMES ):
+def mentalist_download_cgmlst( data_manager_dict, database_name, kmer_size, scheme, output, params, target_directory, data_table_names=DEFAULT_DATA_TABLE_NAMES ):
     args = [ 'mentalist', 'download_pubmlst', '--db', database_name, '-k', str(kmer_size), '-s', scheme, '-o' output]
     proc = subprocess.Popen( args=args, shell=False, cwd=target_directory )
     return_code = proc.wait()
@@ -53,7 +53,7 @@ def main():
     data_manager_dict = {}
 
     # build the index
-    mentalist_download_pubmlst( data_manager_dict, args.database_name, args.kmer_size, args.scheme, args.output, params, target_directory, DEFAULT_DATA_TABLE_NAMES )
+    mentalist_download_cgmlst( data_manager_dict, args.database_name, args.kmer_size, args.scheme, args.output, params, target_directory, DEFAULT_DATA_TABLE_NAMES )
 
     # save info to json file
     open( args.params, 'wb' ).write( dumps( data_manager_dict ) )

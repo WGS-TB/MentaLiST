@@ -4,14 +4,14 @@
     <requirement type="package" version="0.1.2">mentalist</requirement>
   </requirements>
   <command detect_errors="exit_code">
-  <![CDATA[
-	   python '$__tool_directory__/mentalist_download_pubmlst.py'
-	   '{$out_file}'
-	   --db '$database_name'
-	   -k '$kmer_size'
-	   --scheme '$scheme'
-	   --output '$output'
-  ]]>
+    <![CDATA[
+	     python '$__tool_directory__/mentalist_download_pubmlst.py'
+	     '{$out_file}'
+	     --db '$database_name'
+	     -k '$kmer_size'
+	     --scheme '$scheme'
+	     --output '$output'
+    ]]>
   </command>
   <inputs>
     <param name="kmer_size" type="integer"
