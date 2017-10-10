@@ -15,7 +15,7 @@
       </output>
     </data_table>
   </data_manager>
-  <data_manager tool_file="data_manager_mentalist_download_cgmlst/data_manager/mentalist_download_pubmlst.xml" id="mentalist_download_pubmlst" version="0.1.2">
+  <data_manager tool_file="data_manager_mentalist_download_cgmlst/data_manager/mentalist_download_cgmlst.xml" id="mentalist_download_cgmlst" version="0.1.2">
     <data_table name="mentalist_databases">
       <output>
         <column name="value" />
@@ -30,7 +30,7 @@
       </output>
     </data_table>
   </data_manager>
-  <data_manager tool_file="data_manager_mentalist_download_pubmlstdata_manager/mentalist_download_pubmlst.xml" id="mentalist_download_pubmlst" version="0.1.2">
+  <data_manager tool_file="data_manager_mentalist_download_pubmlst/data_manager/mentalist_download_pubmlst.xml" id="mentalist_download_pubmlst" version="0.1.2">
     <data_table name="mentalist_databases">
       <output>
         <column name="value" />
