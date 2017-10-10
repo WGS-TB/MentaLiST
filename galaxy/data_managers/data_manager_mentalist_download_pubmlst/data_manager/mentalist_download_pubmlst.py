@@ -12,7 +12,7 @@ DEFAULT_DATA_TABLE_NAMES = ["mentalist_databases"]
 
 
 def mentalist_download_pubmlst( data_manager_dict, database_name, kmer_size, scheme, output, params, target_directory, data_table_names=DEFAULT_DATA_TABLE_NAMES ):
-    args = [ 'mentalist', 'download_pubmlst', '--db', database_name, '-k', str(kmer_size), '-s', scheme, '-o' output]
+    args = [ 'mentalist', 'download_pubmlst', '--db', database_name, '-k', str(kmer_size), '-s', scheme, '-o', output]
     proc = subprocess.Popen( args=args, shell=False, cwd=target_directory )
     return_code = proc.wait()
     if return_code:
