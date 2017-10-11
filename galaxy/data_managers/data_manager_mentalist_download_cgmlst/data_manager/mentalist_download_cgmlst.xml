@@ -6,7 +6,7 @@
   <command detect_errors="exit_code">
     <![CDATA[
 	     python '$__tool_directory__/mentalist_download_cgmlst.py'
-	     '{$out_file}'
+	     '${out_file}'
 	     --db '$database_name'
 	     -k '$kmer_size'
 	     --scheme '$scheme'
