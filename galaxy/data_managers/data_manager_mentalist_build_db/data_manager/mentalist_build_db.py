@@ -22,7 +22,7 @@ def mentalist_build_db( data_manager_dict, database_name, kmer_size, profile, fa
     if return_code:
         print("Error building database.", file=sys.stderr)
         sys.exit( return_code )
-    data_table_entry = dict( value=database_name, dbkey=database_name, name=database_name, path=(database_name + '/' + database_name) )
+    data_table_entry = dict( value=database_name, dbkey=database_name, name=database_name, path=database_name )
     for data_table_name in data_table_names:
         _add_data_table_entry( data_manager_dict, data_table_name, data_table_entry )
 
