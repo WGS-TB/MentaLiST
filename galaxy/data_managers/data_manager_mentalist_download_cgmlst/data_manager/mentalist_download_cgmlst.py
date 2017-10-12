@@ -20,7 +20,7 @@ def mentalist_download_cgmlst( data_manager_dict, kmer_size, scheme, params, tar
     base_path = scheme.lower().replace(" ", "_").translate(translation_table) + "_cgmlst"
     scheme_files_path = base_path + "_scheme"
     database_path = base_path + "_k" + str(kmer_size)
-    database_name = base_path + "_k" + str(kmer_size) + ".h5"
+    database_name = base_path + "_k" + str(kmer_size) + ".jld"
     display_name = scheme + " k=" + str(kmer_size) + " (PubMLST)"
     args = [ 'mentalist', 'download_cgmlst', '-s', scheme, '-k', str(kmer_size), '--db', database_name, '-o', scheme_files_path]
     proc = subprocess.Popen( args=args, shell=False, cwd=target_directory )
