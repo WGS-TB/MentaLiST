@@ -9,7 +9,7 @@
           <move type="directory" relativize_symlinks="True">
             <target base="${GALAXY_DATA_MANAGER_DATA_PATH}">mentalist_databases/${value}</target>
           </move>
-          <value_translation>${GALAXY_DATA_MANAGER_DATA_PATH}/mentalist_databases/${value}</value_translation>
+          <value_translation>${GALAXY_DATA_MANAGER_DATA_PATH}/mentalist_databases/${value}/${path}</value_translation>
           <value_translation type="function">abspath</value_translation>
         </column>
       </output>
@@ -24,7 +24,7 @@
           <move type="directory" relativize_symlinks="True">
             <target base="${GALAXY_DATA_MANAGER_DATA_PATH}">mentalist_databases/${value}</target>
           </move>
-          <value_translation>${GALAXY_DATA_MANAGER_DATA_PATH}/mentalist_databases/${value}</value_translation>
+          <value_translation>${GALAXY_DATA_MANAGER_DATA_PATH}/mentalist_databases/${value}/${path}</value_translation>
           <value_translation type="function">abspath</value_translation>
         </column>
       </output>
@@ -39,7 +39,7 @@
           <move type="directory" relativize_symlinks="True">
             <target base="${GALAXY_DATA_MANAGER_DATA_PATH}">mentalist_databases/${value}</target>
           </move>
-          <value_translation>${GALAXY_DATA_MANAGER_DATA_PATH}/mentalist_databases/${value}</value_translation>
+          <value_translation>${GALAXY_DATA_MANAGER_DATA_PATH}/mentalist_databases/${value}/${path}</value_translation>
           <value_translation type="function">abspath</value_translation>
         </column>
       </output>

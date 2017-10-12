@@ -7,18 +7,14 @@
     <![CDATA[
 	     python '$__tool_directory__/mentalist_download_cgmlst.py'
 	     '${out_file}'
-	     --db '$database_name'
 	     -k '$kmer_size'
 	     --scheme '$scheme'
-	     --output '$output'
     ]]>
   </command>
   <inputs>
     <param name="kmer_size" type="integer"
 	   label="Kmer size" help="Kmer size"
 	   value="31" min="1" max="32" />
-    <param name="output" type="text" label="Output" />
-    <param name="database_name" type="text" label="Database Name" />
     <param name="scheme" type="select" multiple="false" label="Select scheme to download">
       <option value="Acinetobacter baumannii">Acinetobacter baumannii</option>
       <option value="Clostridioides difficile">Clostridioides difficile</option>

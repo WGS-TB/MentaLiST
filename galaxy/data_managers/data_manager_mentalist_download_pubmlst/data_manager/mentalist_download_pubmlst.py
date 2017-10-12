@@ -1,24 +1,34 @@
 #!/usr/bin/env python
+
 from __future__ import print_function
 
 import argparse
+import errno
 import os
+import string
 import subprocess
 import sys
-import errno
+
 from json import dumps, loads
+
 
 DEFAULT_DATA_TABLE_NAMES = ["mentalist_databases"]
 
 
-def mentalist_download_pubmlst( data_manager_dict, database_name, kmer_size, scheme, output, params, target_directory, data_table_names=DEFAULT_DATA_TABLE_NAMES ):
-    args = [ 'mentalist', 'download_pubmlst', '--db', database_name, '-k', str(kmer_size), '-s', scheme, '-o', output]
+def mentalist_download_pubmlst( data_manager_dict, kmer_size, scheme, params, target_directory, data_table_names=DEFAULT_DATA_TABLE_NAMES ):
+    translation_table = string.maketrans(string.punctuation, ("_" * 32))
+    base_path = scheme.lower().replace(" ", "_").translate(translation_table) + "_pubmlst"
+    scheme_files_path = base_path + "_scheme"
+    database_path = base_path + "_k" + str(kmer_size)
+    database_name = base_path + "_k" + str(kmer_size) + ".h5"
+    display_name = scheme + " k=" + str(kmer_size) + " (PubMLST)"
+    args = [ 'mentalist', 'download_pubmlst', '-s', scheme, '-k', str(kmer_size), '--db', database_name, '-o', scheme_files_path]
     proc = subprocess.Popen( args=args, shell=False, cwd=target_directory )
     return_code = proc.wait()
     if return_code:
         print("Error building database.", file=sys.stderr)
         sys.exit( return_code )
-    data_table_entry = dict( value=database_name, dbkey=database_name, name=database_name, path=database_name )
+    data_table_entry = dict( value=database_path, dbkey='PubMLST', name=display_name, path=database_name )
     for data_table_name in data_table_names:
         _add_data_table_entry( data_manager_dict, data_table_name, data_table_entry )
 
@@ -33,10 +43,8 @@ def _add_data_table_entry( data_manager_dict, data_table_name, data_table_entry 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('params')
-    parser.add_argument( '-d', '--db', dest='database_name', default=None, help='Database Name' )
-    parser.add_argument( '-k', '--kmer_size', dest='kmer_size', type=int, default=None, help='kmer Size' )
     parser.add_argument( '-s', '--scheme', dest='scheme', default=None, help='Scheme' )
-    parser.add_argument( '-o', '--output', dest='output', default=None, help='Output' )
+    parser.add_argument( '-k', '--kmer_size', dest='kmer_size', type=int, default=None, help='kmer Size' )
     args = parser.parse_args()
 
     params = loads( open( args.params ).read() )
@@ -53,7 +61,7 @@ def main():
     data_manager_dict = {}
 
     # build the index
-    mentalist_download_pubmlst( data_manager_dict, args.database_name, args.kmer_size, args.scheme, args.output, params, target_directory, DEFAULT_DATA_TABLE_NAMES )
+    mentalist_download_pubmlst( data_manager_dict, args.kmer_size, args.scheme, params, target_directory, DEFAULT_DATA_TABLE_NAMES )
 
     # save info to json file
     open( args.params, 'wb' ).write( dumps( data_manager_dict ) )
