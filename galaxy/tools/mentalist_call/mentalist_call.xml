@@ -17,11 +17,6 @@
         #if str( $fastq_input_selector ) == "paired":
             -s '$fastq_input1.name'
             '$fastq_input1' '$fastq_input2'
-	#else:
-            #if str( $fastq_input_selector ) == "paired_collection":
-                -s '$fastq_input.name'
-                '$fastq_input.forward' '$fastq_input.reverse'
-	    #end if
 	#end if	
     #end if
   ]]></command>
@@ -49,9 +44,6 @@
       </when>
       <when value="single">
 	<param name="fastq_input1" type="data" format="fastq" label="Select fastq dataset" help="Specify dataset with single reads"/>
-      </when>
-      <when value="paired_collection">
-	<param name="fastq_input" format="fastq" type="data_collection" collection_type="paired" label="Select a paired collection" label="Select dataset pair" help="Specify paired dataset collection containing paired reads"/>
       </when>
     </conditional>
   </inputs>
