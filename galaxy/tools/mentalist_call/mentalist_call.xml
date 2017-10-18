@@ -6,12 +6,22 @@
     mentalist
     call
     -o '$output_file'
-    -s '$input_fastqs.name'
     --db '$kmer_db.fields.path'
     #if $discard_threshold
         -t '$discard_threshold'
     #end if
-    $input_fastqs.forward $input_fastqs.reverse
+    #if '$fastq_input_selector' == "single"
+        -s '$fastq_input1.name'
+        '$fastq_input1'
+    #end if
+    #if '$fastq_input_selector' == "paired"
+        -s '$fastq_input1.name'
+        '$fastq_input1' '$fastq_input2'
+    #end if
+    #if '$fastq_input_selector' == "paired_collection"
+        -s '$fastq_input.name'
+        '$fastq_input.forward' '$fastq_input.reverse'
+    #end if
   ]]></command>
   <inputs>
     <param name="kmer_db" type="select">
@@ -25,8 +35,23 @@
     <param name="skip_length" type="integer"
 	   label="Skip Length" help="Skip length between consecutive k-mers."
 	   value="1" min="1" max="32" />
-    <param name="input_fastqs" type="data_collection" collection_type="paired" format="fastq"
-	   label="Input FastQ" help="FastQ input files" />
+    <conditional name="fastq_input">
+      <param name="fastq_input_selector" type="select" label="Single or Paired-end reads" help="Select between paired and single end data">
+	<option value="paired">Paired</option>
+	<option value="single">Single</option>
+	<option value="paired_collection">Paired Collection</option>
+      </param>
+      <when value="paired">
+	<param name="fastq_input1" type="data" format="fastq" label="Select first set of reads" help="Specify dataset with forward reads"/>
+	<param name="fastq_input2" type="data" format="fastq" label="Select second set of reads" help="Specify dataset with reverse reads"/>
+      </when>
+      <when value="single">
+	<param name="fastq_input1" type="data" format="fastq" label="Select fastq dataset" help="Specify dataset with single reads"/>
+      </when>
+      <when value="paired_collection">
+	<param name="fastq_input" format="fastq" type="data_collection" collection_type="paired" label="Select a paired collection" label="Select dataset pair" help="Specify paired dataset collection containing paired reads"/>
+      </when>
+    </conditional>
   </inputs>
   <outputs>
     <data name="output_file" format="tabular"/>
