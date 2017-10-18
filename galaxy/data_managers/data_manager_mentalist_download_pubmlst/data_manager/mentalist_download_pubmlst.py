@@ -23,7 +23,7 @@ def mentalist_download_pubmlst( data_manager_dict, kmer_size, scheme, params, ta
     scheme_files_path = base_path + "_scheme_" + today
     database_path = base_path + "_k" + str(kmer_size) + "_" + today
     database_name = base_path + "_k" + str(kmer_size) + "_" + today + ".jld"
-    display_name = scheme + " k=" + str(kmer_size) + " (PubMLST)" + today
+    display_name = scheme + " k=" + str(kmer_size) + " (PubMLST) " + today
     args = [ 'mentalist', 'download_pubmlst', '-s', scheme, '-k', str(kmer_size), '--db', database_name, '-o', scheme_files_path]
     proc = subprocess.Popen( args=args, shell=False, cwd=target_directory )
     return_code = proc.wait()
