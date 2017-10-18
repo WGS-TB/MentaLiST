@@ -10,17 +10,19 @@
     #if $discard_threshold
         -t '$discard_threshold'
     #end if
-    #if '$fastq_input_selector' == "single"
+    #if str( $fastq_input_selector ) == "single":
         -s '$fastq_input1.name'
         '$fastq_input1'
-    #end if
-    #if '$fastq_input_selector' == "paired"
-        -s '$fastq_input1.name'
-        '$fastq_input1' '$fastq_input2'
-    #end if
-    #if '$fastq_input_selector' == "paired_collection"
-        -s '$fastq_input.name'
-        '$fastq_input.forward' '$fastq_input.reverse'
+    #else:
+        #if str( $fastq_input_selector ) == "paired":
+            -s '$fastq_input1.name'
+            '$fastq_input1' '$fastq_input2'
+	#else:
+            #if str( $fastq_input_selector ) == "paired_collection":
+                -s '$fastq_input.name'
+                '$fastq_input.forward' '$fastq_input.reverse'
+	    #end if
+	#end if	
     #end if
   ]]></command>
   <inputs>
