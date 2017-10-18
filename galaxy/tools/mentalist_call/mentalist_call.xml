@@ -6,7 +6,7 @@
     mentalist
     call
     -o '$output_file'
-    -s '$sample_name'
+    -s '$input_fastqs.name'
     --db '$kmer_db.fields.path'
     #if $discard_threshold
         -t '$discard_threshold'
@@ -14,8 +14,6 @@
     $input_fastqs.forward $input_fastqs.reverse
   ]]></command>
   <inputs>
-    <param name="sample_name" type="text"
-	   label="Sample Name" help="Sample Name" />
     <param name="kmer_db" type="select">
       <options from_data_table="mentalist_databases">
 	<validator type="no_options" message="No MentaLiST databases are available" />
