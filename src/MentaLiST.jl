@@ -17,13 +17,13 @@ function parse_commandline()
         help = "Build a MLST k-mer database, given a list of FASTA files."
         action = :command
       "list_pubmlst"
-        help = "List all available MLST schema from www.pubmlst.org. "
+        help = "List all available MLST schemes from www.pubmlst.org. "
         action = :command
       "download_pubmlst"
         help = "Dowload a MLST scheme from pubmlst and build a MLST k-mer database."
         action = :command
       "list_cgmlst"
-        help = "List all available cgMLST schema from www.cgmlst.org."
+        help = "List all available cgMLST schemes from www.cgmlst.org."
         action = :command
       "download_cgmlst"
           help = "Dowload a MLST scheme from cgmlst.org and build a MLST k-mer database."
@@ -74,19 +74,19 @@ function parse_commandline()
     end
     @add_arg_table s["list_pubmlst"] begin
       "-p", "--prefix"
-      help = "Only list schema that starts with this prefix."
+      help = "Only list schemes that starts with this prefix."
       arg_type = String
     end
 
     @add_arg_table s["list_cgmlst"] begin
       "-p", "--prefix"
-      help = "Only list schema that starts with this prefix."
+      help = "Only list schemes that start with this prefix."
       arg_type = String
     end
 
     @add_arg_table s["download_pubmlst"] begin
       "-o", "--output"
-        help = "Output folder for the schema files."
+        help = "Output folder for the scheme files."
         arg_type = String
         required = true
       "-s", "--scheme"
@@ -108,7 +108,7 @@ function parse_commandline()
 
     @add_arg_table s["download_cgmlst"] begin
       "-o", "--output"
-        help = "Output folder for the schema files."
+        help = "Output folder for the scheme files."
         arg_type = String
         required = true
       "-s", "--scheme"
