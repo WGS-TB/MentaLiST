@@ -94,7 +94,7 @@ function available_cgmlst_schema()
   open(_cgmlst_http()) do f
     for l in eachline(f)
       for row in split(l, "<td>")
-        m = match(r"<a href='http://www.cgmlst.org/ncs/schema/(?<id>[0-9]+)/'><em>(?<species>\w+ \w+)</em>", row)
+        m = match(r"<a href='http://www.cgmlst.org/ncs/schema/(?<id>[0-9]+)/'><em>(?<species>.+)</em>", row)
         if m != nothing
           id, species = m.captures
           push!(scheme_list,(id,species))
