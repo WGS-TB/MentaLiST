@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<data_managers>
+  <data_manager tool_file="data_manager_mentalist_build_db/data_manager/mentalist_build_db.xml" id="mentalist_build_db" version="0.1.2">
+    <data_table name="mentalist_databases">
+      <output>
+        <column name="value" />
+        <column name="name" />
+        <column name="path" output_ref="out_file">
+          <move type="directory" relativize_symlinks="True">
+            <target base="${GALAXY_DATA_MANAGER_DATA_PATH}">mentalist_databases/${value}</target>
+          </move>
+          <value_translation>${GALAXY_DATA_MANAGER_DATA_PATH}/mentalist_databases/${value}/${path}</value_translation>
+          <value_translation type="function">abspath</value_translation>
+        </column>
+      </output>
+    </data_table>
+  </data_manager>
+  <data_manager tool_file="data_manager_mentalist_download_cgmlst/data_manager/mentalist_download_cgmlst.xml" id="mentalist_download_cgmlst" version="0.1.2">
+    <data_table name="mentalist_databases">
+      <output>
+        <column name="value" />
+        <column name="name" />
+        <column name="path" output_ref="out_file">
+          <move type="directory" relativize_symlinks="True">
+            <target base="${GALAXY_DATA_MANAGER_DATA_PATH}">mentalist_databases/${value}</target>
+          </move>
+          <value_translation>${GALAXY_DATA_MANAGER_DATA_PATH}/mentalist_databases/${value}/${path}</value_translation>
+          <value_translation type="function">abspath</value_translation>
+        </column>
+      </output>
+    </data_table>
+  </data_manager>
+  <data_manager tool_file="data_manager_mentalist_download_pubmlst/data_manager/mentalist_download_pubmlst.xml" id="mentalist_download_pubmlst" version="0.1.2">
+    <data_table name="mentalist_databases">
+      <output>
+        <column name="value" />
+        <column name="name" />
+        <column name="path" output_ref="out_file">
+          <move type="directory" relativize_symlinks="True">
+            <target base="${GALAXY_DATA_MANAGER_DATA_PATH}">mentalist_databases/${value}</target>
+          </move>
+          <value_translation>${GALAXY_DATA_MANAGER_DATA_PATH}/mentalist_databases/${value}/${path}</value_translation>
+          <value_translation type="function">abspath</value_translation>
+        </column>
+      </output>
+    </data_table>
+  </data_manager>
+</data_managers>

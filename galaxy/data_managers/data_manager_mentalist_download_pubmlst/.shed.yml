@@ -1,0 +1,11 @@
+categories:
+- Data Managers
+- Metagenomics
+description: Contains a data manager that defines and populates the mentalist_databases tool data table.
+homepage_url: https://github.com/WGS-TB/MentaLiST/
+long_description: |
+  MentaLiST is based on a k-mer counting algorithm, specifically designed and implemented to handle large typing schemes.
+name: data_manager_mentalist_download_pubmlst
+owner: dfornika
+remote_repository_url: https://github.com/WGS-TB/MentaLiST/tree/master/galaxy/data_managers/data_manager_mentalist_download_pubmlst
+type: unrestricted

@@ -1,0 +1,58 @@
+<tool id="mentalist_call" name="MentaLiST MLST Analysis" version="0.1.2">
+  <requirements>
+    <requirement type="package" version="0.1.2">mentalist</requirement>
+  </requirements>
+  <command detect_errors="exit_code"><![CDATA[
+    mentalist
+    call
+    -o '$output_file'
+    --db '$kmer_db.fields.path'
+    #if $discard_threshold
+        -t '$discard_threshold'
+    #end if
+    #if str( $fastq_input_selector ) == "single":
+        -s '$fastq_input1.name'
+        '$fastq_input1'
+    #else:
+        #if str( $fastq_input_selector ) == "paired":
+            -s '$fastq_input1.name'
+            '$fastq_input1' '$fastq_input2'
+	#end if	
+    #end if
+  ]]></command>
+  <inputs>
+    <param name="kmer_db" type="select">
+      <options from_data_table="mentalist_databases">
+	<validator type="no_options" message="No MentaLiST databases are available" />
+      </options>
+    </param>
+    <param name="discard_threshold" type="float"
+	   label="Discard Threshold" help="A read of length L is discarded if it has at less than (L - k) * t hits to the same locus in the kmer database, where k is the kmer length. 0 &lt;= t &lt;= 1"
+	   value="0.3" min="0" max="1" />
+    <param name="skip_length" type="integer"
+	   label="Skip Length" help="Skip length between consecutive k-mers."
+	   value="1" min="1" max="32" />
+    <conditional name="fastq_input">
+      <param name="fastq_input_selector" type="select" label="Single or Paired-end reads" help="Select between paired and single end data">
+	<option value="paired">Paired</option>
+	<option value="single">Single</option>
+	<option value="paired_collection">Paired Collection</option>
+      </param>
+      <when value="paired">
+	<param name="fastq_input1" type="data" format="fastq" label="Select first set of reads" help="Specify dataset with forward reads"/>
+	<param name="fastq_input2" type="data" format="fastq" label="Select second set of reads" help="Specify dataset with reverse reads"/>
+      </when>
+      <when value="single">
+	<param name="fastq_input1" type="data" format="fastq" label="Select fastq dataset" help="Specify dataset with single reads"/>
+      </when>
+    </conditional>
+  </inputs>
+  <outputs>
+    <data name="output_file" format="tabular"/>
+  </outputs>
+  <help><![CDATA[
+  ]]></help>
+  <citations>
+    <citation type="doi">10.1101/172858</citation>
+  </citations>
+</tool>
