@@ -1,5 +1,4 @@
 #!/usr/bin/env julia
-module MentaLiST
 
 using Suppressor
 @suppress_err begin
@@ -206,5 +205,3 @@ function main()
 end
 
 main()
-
-end
