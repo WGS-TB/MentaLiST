@@ -288,7 +288,7 @@ function write_calls(votes, loci_votes, loci, loci2alleles, sample, filename, pr
       max_idx = min(length(votes[idx]),10)
       sorted_vote = sort(collect(votes[idx]), by=x->-x[2])
       top_vote = sorted_vote[1][2] + (sorted_vote[end][2] < 0 ? abs(sorted_vote[end][2]) : 0)
-      votes_txt = join(["$a($b)" for (a,b) in sorted_vote],",")
+      votes_txt = join(["$(loci2alleles[idx][a])($b)" for (a,b) in sorted_vote],",")
       # votes_txt = join(["$a($b)" for (a,b) in sorted_vote[1:max_idx]],",")
       write(f, "$locus\t$(loci_votes[idx])\t$top_vote\t$votes_txt\n")
       # ties:
