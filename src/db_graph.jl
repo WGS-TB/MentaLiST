@@ -90,9 +90,131 @@ function db_graph_contig_kmers{k}(::Type{DNAKmer{k}}, fastafiles)
 end
 
 
-# # main:
-#   k = 31
-#   contigs = db_graph_contigs(DNAKmer{k}, ["/projects/pathogist/cgMLST/MTB/Rv0900.fa"])
-#   for contig in contigs
-#     println(contig_to_string(contig))
-#   end
+# CAlling:
+function sequence_coverage{k}(::Type{DNAKmer{k}}, sequence, kmer_count)
+  # find the minimum abundance of all kmers of the given variant
+  smallest_coverage = 100000
+  covered = 0
+  uncovered = 0
+  for (pos, kmer) in each(DNAKmer{k}, DNASequence(sequence))
+    can_kmer = canonical(kmer)
+    if haskey(kmer_count, can_kmer)
+      covered += 1
+      cov = kmer_count[can_kmer]
+      if cov < smallest_coverage
+        smallest_coverage = cov
+      end
+    else
+      uncovered += 1
+      smallest_coverage = 0
+    end
+  end
+  return smallest_coverage, covered/(covered+uncovered)
+end
+
+
+function find_allele_variants{k}(::Type{DNAKmer{k}}, template_sequences, kmer_count)
+  novel_allele_list = []
+  found = Set{String}()
+  max_mutations = 10
+  function scan_variant(n_mut, sequence, events)
+    if n_mut > max_mutations
+      return
+    end
+    THR = 10 # TODO: set a global threshold somewhere, also as parameter;
+    last_kmer_present = false
+    for (pos, kmer) in each(DNAKmer{k}, DNASequence(sequence))
+      can_kmer = canonical(kmer)
+      if get(kmer_count, can_kmer, 0) > THR
+        if pos > 1 && (!last_kmer_present)
+          # found a kmer and the last was not there; check if I can find kmer variations for the previous position
+          km = "$kmer"
+          for base in ["A","C","T","G"]
+            if get(kmer_count, canonical(DNAKmer{k}("$base$(km[1:end-1])")), 0) > THR
+              # found a kmer variant;
+              # substitution at position pos-1
+              substitution_seq = sequence[1:pos-2] * base * sequence[pos:end]
+              push!(candidate_list, (n_mut+1, substitution_seq, [events; [("M",pos-1,base)]]))
+              # insertion:
+              insertion_seq = sequence[1:pos-1] * base * sequence[pos:end]
+              push!(candidate_list, (n_mut+1, insertion_seq, [events; [("I",pos-1,base)]]))
+              # deletion:
+              for i in 0:2
+                if pos-2-i < 1
+                  break
+                end
+                if sequence[pos-2-i:pos-2-i] == base
+                  deletion_seq = sequence[1:pos-2-i] * sequence[pos:end]
+                  push!(candidate_list, (n_mut+1+i, deletion_seq, [events; [("D",pos-1,"$(i+1)")]]))
+                  break
+                end
+              end
+              # this variant has mismatches, so just return;
+              return
+            end
+          end
+        end
+        last_kmer_present = true
+      else
+        if last_kmer_present
+          # last_kmer_present was present, but this not; check kmer variations for nest position
+          km = "$kmer"
+          for base in ["A","C","T","G"]
+            if get(kmer_count, canonical(DNAKmer{k}("$(km[1:end-1])$base")), 0) > THR
+              # println("Found a $base at pos $(pos+k-1)")
+              # substitution at position pos+k-1;
+              substitution_seq = sequence[1:pos+k-2] * base * sequence[pos+k:end]
+              push!(candidate_list, (n_mut+1, substitution_seq, [events; [("M",pos+k-1,base)]]))
+              # insertion:
+              insertion_seq = sequence[1:pos+k-2] * base * sequence[pos+k-1:end]
+              push!(candidate_list, (n_mut+1, insertion_seq, [events; [("I",pos+k-1,base)]]))
+              # deletion:
+              for i in 0:2
+                # println("trying $(pos+k+i), found $(sequence[pos+k+i]) (want $base) $(sequence[pos+k+i:pos+k+i] == base).")
+                if pos+k+i > length(sequence)
+                  break
+                end
+                if sequence[pos+k+i:pos+k+i] == base
+                  # println("Found a possible deletion, pos $(pos+k-1) to $(pos+k+i-1)")
+                  deletion_seq = sequence[1:pos+k-2] * sequence[pos+k+i:end]
+                  push!(candidate_list, (n_mut+1+i, deletion_seq, [events; [("D",pos+k-1,"$(i+1)")]]))
+                  break
+                end
+              end
+              # the original sequence has mismatches, so just return;
+              return
+            end
+          end
+        end
+        last_kmer_present = false
+      end
+    end
+    # passed without suggesting mutations, test this variant:
+    var_ab = sequence_coverage(DNAKmer{k}, sequence, kmer_count)[1]
+    if var_ab > 0
+      if !in(sequence, found)
+        push!(novel_allele_list, (n_mut, sequence, events, var_ab))
+        push!(found, sequence)
+        max_mutations = n_mut
+      end
+    end
+  end
+
+  candidate_list = [(0, template_sequence, []) for template_sequence in template_sequences]
+  idx = 1
+  while idx <= length(candidate_list)
+    n_mut, candidate_sequence, mutations = candidate_list[idx]
+    scan_variant(n_mut, candidate_sequence, mutations)
+    idx += 1
+  end
+
+  # println("Variants found: $(length(novel_allele_list))\n") #$novel_allele_list")
+  # println("Variants found: $(length(novel_allele_list))\n$novel_allele_list")
+  if length(novel_allele_list) > 0
+    # sort and return the one with minimum mutations: TODO: tie?
+    return sort(novel_allele_list, by=x->x[1])[1]
+  else
+    return nothing
+  end
+
+end
