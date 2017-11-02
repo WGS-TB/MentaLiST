@@ -33,7 +33,7 @@ source activate mentalist
 
 Once the mentalist conda environment is active, you should be able to run MentaLiST. Typing:
 ```
-MentaLiST.jl -h 
+mentalist -h 
 ```
 produces the help output. 
 
