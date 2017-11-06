@@ -13,6 +13,6 @@ class Mentalist < Formula
   end
 
   test do
-    
+    system "#{bin}/mentalist", "-h"
   end
 end
