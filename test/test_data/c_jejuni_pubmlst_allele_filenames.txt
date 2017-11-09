@@ -1,0 +1,8 @@
+aspA.tfa
+campylobacter.txt
+glnA.tfa
+gltA.tfa
+glyA.tfa
+pgm.tfa
+tkt.tfa
+uncA.tfa
