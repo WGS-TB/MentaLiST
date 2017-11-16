@@ -43,6 +43,14 @@ function parse_commandline()
           help = "Kmer database"
           required = true
           arg_type = String
+        "-t", "--mutation_threshold"
+          help = "Maximum edit distance (number of mutations) when looking for novel alleles."
+          arg_type = Int
+          default = 6
+        "--kt"
+          help = "Minimum # of times a kmer is seen, to be considered 'solid', meaning actually present in the sample."
+          arg_type = Int
+          default = 10
         "files"
           nargs = '*'
           help = "FastQ input files"
@@ -130,19 +138,20 @@ function parse_commandline()
     return parse_args(s)
 end
 
-
 #### Main COMMAND functions:
 function call_mlst(args)
   include("build_db_functions.jl")
   info("Opening kmer database ... ")
-  kmer_db, loci, loci2alleles, k, profile = open_db(args["db"])
+  kmer_db, loci, loci2alleles, k, profile, build_args = open_db(args["db"])
 
   info("Opening fastq file(s) and counting kmers ... ")
   kmer_count = count_kmers(DNAKmer{k}, args["files"], kmer_db)
   info("Voting for alleles ... ")
   votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
+  info("Calling alleles ...")
+  allele_calls, novel_alleles, best_voted_alleles, report, vote_log, ties, alleles_to_check = call_alleles_from_votes(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], args["kt"], args["mutation_threshold"])
   info("Writing output ...")
-  write_calls(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, args["s"], args["o"], profile)
+  write_calls(DNAKmer{k}, allele_calls, novel_alleles, best_voted_alleles, report, vote_log, ties, alleles_to_check, loci, args["s"], args["o"], profile)
 
   info("Done.")
 end
@@ -178,6 +187,8 @@ end
 function build_db(args)
   include("build_db_functions.jl")
   k::Int8 = args["k"]
+  db_file = args["db"]
+  profile = args["profile"]
   info("Opening FASTA files ... ")
   results, loci = kmer_class_for_each_locus(k, args["fasta_files"], !args["disable_compression"])
   # Combine results:
@@ -185,7 +196,7 @@ function build_db(args)
   kmer_classification = combine_loci_classification(k, results, loci)
 
   info("Saving DB ...")
-  save_db(k, kmer_classification, loci, args["db"], args["profile"])
+  save_db(k, kmer_classification, loci, db_file, profile, args)
   info("Done!")
 end
 

@@ -123,7 +123,6 @@ function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String, compress
           read!(reader, record)
           for (pos, kmer) in each(DNAKmer{k}, record.seq)
             can_kmer = canonical(kmer)
-            # if !compress || (can_kmer in allowed_kmers)
             if !compress || (haskey(allowed_kmers,can_kmer))
               push!(kmer_class[can_kmer], allele_idx)
             end
@@ -140,15 +139,16 @@ function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String, compress
   return kmer_class, allele_ids, allowed_kmers
 end
 
-function save_db(k, kmer_db, loci, filename, profile)
+function save_db(k, kmer_db, loci, filename, profile, args)
+
   loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus = kmer_db
   d = Dict(
     "loci_list"=> Blosc.compress(loci_list),
     "weight_list" => Blosc.compress(weight_list),
     "allele_ids_per_locus" => Blosc.compress(allele_ids_per_locus),
     "kmer_list" => join(kmer_list,""),
-    "k"=>k,
-    "loci"=>loci
+    "loci"=>loci,
+    "args"=>JSON.json(args)
   )
   # alleles list: potentially larger than 2G, so check limit:
   limit = floor(Int,2000000000/sizeof(alleles_list[1])) # Blosc limit is 2147483631, slightly less than 2G (2147483648). Using 2000000000 just to make it easier on the eye. :)
@@ -202,7 +202,8 @@ function open_db(filename)
       idx += 1
     end
   end
-  k = d["k"]
+  build_args = JSON.parse(d["args"])
+  k = build_args["k"]
   loci = d["loci"]
   loci_list = Blosc.decompress(Int32, d["loci_list"])
   # weight_list = Blosc.decompress(Int8, d["weight_list"])
@@ -245,7 +246,7 @@ function open_db(filename)
       push!(kmer_classification[kmer], (locus_idx, weight, current_allele_list))
     end
   end
-  return kmer_classification, loci, loci2alleles, k, profile
+  return kmer_classification, loci, loci2alleles, k, profile, build_args
 end
 
 function _find_profile(alleles, profile)
@@ -253,7 +254,7 @@ function _find_profile(alleles, profile)
     return 0,0
   end
   l = length(alleles)
-  alleles_str = map(string,alleles)
+    alleles_str = map(string,alleles)
   for genotype in profile["types"]
     # first element is the type id, all the rest is the actual genotype:
     if alleles_str == genotype[2:1+l]
@@ -278,115 +279,181 @@ function read_alleles(fastafile)
   return alleles
 end
 
-
-function write_calls{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci, loci2alleles, sample, filename, profile)
-
-  best_alleles = String[]
+# TODO: a command line parameter for the keyword arguments
+function call_alleles_from_votes{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci, loci2alleles, fasta_files, kmer_thr, max_mutations)
+  allele_calls = String[]
   novel_alleles = Dict{Int, Any}()
+  report = []
+  alleles_to_check = []
   # For each call, test kmer coverage depth:
   for (idx, locus) in enumerate(loci)
+    # 1st - if no locus votes, no presence:
+    if loci_votes[idx] == 0
+      push!(allele_calls, "0")
+      # println("L:$(loci[idx]) Zero votes")
+      push!(report, (0.0,0,"Not present, no kmers found.")) # Coverage, Minkmer depth, Call
+      continue
+    end
     sorted_voted_alleles = sort(collect(votes[idx]), by=x->-x[2])
-    # get a few and test coverage: #TODO: add this info in the DB
-    # salmonella
-    allele_seqs = read_alleles("/projects/pathogist/cgMLST/salmonella/enterobase/20Aug2017/wgMLST/$(loci[idx]).fasta")
-    # mtb:
-    # allele_seqs = read_alleles("/projects/pathogist/cgMLST/MTB/fasta/$(loci[idx]).fa")
-    # for i in 1:min(5, length(best_voted_alleles))
-    allele_coverage = [(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count)) for (al, votes) in sorted_voted_alleles[1:min(5,end)]]
+    allele_seqs = read_alleles(fasta_files[idx])
+    allele_coverage = [(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)) for (al, votes) in sorted_voted_alleles[1:min(20,end)]]
+    # println("L:$(loci[idx]) $([(loci2alleles[idx][x[1]],x[2],x[3]) for x in allele_coverage])")
+    # sequence_coverage returns smallest depth of coverage, # kmers covered, # kmers uncovered
     # covered:
-    THR = 10 # TODO: a command line parameter, with 10 as default?
-    covered = [x for x in allele_coverage if (x[3][1] >= THR && x[2] >= 0)] # >THR coverage, >0 votes;
-    println("L:$(loci[idx]) $covered")
-    if length(covered) == 1
-      # choose the covered allele
-      allele = covered[1][1]
-      push!(best_alleles, "$(loci2alleles[idx][allele])")
-    elseif length(covered) > 1
-      # choose the most voted, but indicate that there are more covered that might be possible:
-      allele = covered[1][1]
-      push!(best_alleles, "$(loci2alleles[idx][allele])+")
-    else
-      # no allele is covered; if the "hole" is small, try novel allele
-      # Try to find novel; sort by # of uncovered kmers or % covered
+    covered = [x for x in allele_coverage if (x[3][1] >= kmer_thr)] # if I remove negative votes, I might reconstruct this on the novel anyway; better to flag output
+    # each element in covered is a tuple -> (allele, votes, (depth, # covered, # uncovered))
 
-      sorted_allele_coverage = sort(allele_coverage, by=x->-x[3][2])
-      println(sorted_allele_coverage)
-      # println("Novel allele? Sorted coverage:\n$sorted_allele_coverage")
-      largest_cover = sorted_allele_coverage[1][3][2]
-      # if does not have at least 0.5 coverage, consider not present;
-      if largest_cover < 0.5
-        push!(best_alleles, "0") # not present
+    # println("L:$(loci[idx]) Covered:$([(loci2alleles[idx][x[1]],x[2],x[3]) for x in covered])")
+    if length(covered) == 1
+      # choose the only fully covered allele
+      allele = covered[1][1]
+      depth = covered[1][3][1]
+      push!(allele_calls, "$(loci2alleles[idx][allele])")
+      push!(report, (1, depth, "$(loci2alleles[idx][allele])")) # Coverage, Minkmer depth, Call
+      continue
+    end
+    if length(covered) > 1
+      # choose the most voted, but indicate that there are more fully covered that might be possible:
+      allele = covered[1][1]
+      push!(allele_calls, "$(loci2alleles[idx][allele])+")
+      multiple_alleles = join([loci2alleles[idx][x[1]] for x in covered],", ")
+      multiple_votes = join([x[2] for x in covered],", ")
+      multiple_depth = join([x[3][1] for x in covered],", ")
+      push!(report, (1, "*", "Multiple possible alleles:$multiple_alleles with depth $multiple_depth and votes $multiple_votes. Most voted ($(loci2alleles[idx][allele])) is chosen on call file.")) # Coverage, Minkmer depth, Call
+      # save those alleles:
+      for x in covered
+        push!(alleles_to_check, (locus, loci2alleles[idx][x[1]], allele_seqs[x[1]]))
+      end
+      continue
+    end
+    # here, no allele is covered; if the "hole" is small, try novel allele
+    # Try to find novel; sort by # of uncovered kmers or % covered
+    sorted_allele_coverage = sort(allele_coverage, by=x->x[3][3])
+    uncovered_kmers = sorted_allele_coverage[1][3][3]
+    coverage = sorted_allele_coverage[1][3][2] / (sorted_allele_coverage[1][3][3] + sorted_allele_coverage[1][3][2])
+    println("Novel; Sorted coverage:\n$(join(sorted_allele_coverage,','))")
+    # if does not have at least 0.7 coverage, consider not present;
+    # if largest_coverage <= 0 # search all;
+    # each mutation gives around k uncovered kmers, so if smallest_uncovered > k * max_mutations, then declare missing;
+    if uncovered_kmers > k * max_mutations # more than 3 big bubbles, consider not present; TODO: better criteria?
+      push!(allele_calls, "0") # not present
+      allele = sorted_allele_coverage[1][1]
+      depth = sorted_allele_coverage[3][1]
+      push!(report, (round(coverage,3), depth, "Not present, allele $allele is the best but below threshold with $uncovered_kmers missing kmers.")) # Coverage, Minkmer depth, Call
+      # save allele
+      push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele]))
+      continue
+    end
+    # otherwise, try to find a novel allele; get the most covered allele as template:
+    template_alleles = [sorted_allele_coverage[1][1]]
+    # if there is a tie with other alleles, also include them:
+    for i in 2:min(5, length(sorted_allele_coverage))
+      if sorted_allele_coverage[i][3][3] > uncovered_kmers
+        break
+      end
+      push!(template_alleles, sorted_allele_coverage[i][1])
+    end
+    # try the template(s)
+    println("Trying $(length(template_alleles)) templates for a novel allele.")
+    try_novel_allele = find_allele_variants(DNAKmer{k}, allele_seqs, template_alleles, kmer_count, kmer_thr, max_mutations)
+    println("Trynovel:$try_novel_allele")
+    if try_novel_allele != nothing
+      n_mut, used_template_allele, sequence, events, var_ab = try_novel_allele
+      if any([sequence == allele_seqs[template_allele] for template_allele in template_alleles])
+        # not a new allele; TODO: check why
+        println("******************************** Found the same allele, no novel! -> $(loci[idx])")
+        # TODO: find the correct covered; now just pick the best voted:
+        allele = sorted_voted_alleles[1][1]
+        push!(allele_calls, "$(loci2alleles[idx][allele])")
+        depth = sorted_allele_coverage[3][1]
+        push!(report, (1, var_ab, "$(loci2alleles[idx][allele])")) # Coverage, Minkmer depth, Call
+
       else
-        # otherwise, try to find a novel allele
-        template_alleles = [ allele_seqs[sorted_allele_coverage[1][1]] ]
-        for i in 2:min(5, length(sorted_allele_coverage))
-          if sorted_allele_coverage[i][3][2] >= largest_cover
-            push!(template_alleles, allele_seqs[sorted_allele_coverage[i][1]])
-          else
-            break
-          end
+       # found something, save the allele;
+        novel_alleles[idx] = try_novel_allele
+        push!(allele_calls, "N")
+        mutations_txt = n_mut > 1 ? "mutations" : "mutation"
+        mutation_desc = join([describe_mutation(ev) for ev in events], ", ")
+        push!(report, (1, var_ab, "Novel, $n_mut $mutations_txt from allele $used_template_allele: $mutation_desc")) # Coverage, Minkmer depth, Call
+        # save, closest and novel:
+        push!(alleles_to_check, (locus, loci2alleles[idx][used_template_allele], allele_seqs[used_template_allele]))
+        push!(alleles_to_check, (locus, "Novel", sequence))
+
+      end
+    else
+      # did not find anything; output 0
+      push!(allele_calls, "0/N?")
+      allele = sorted_allele_coverage[1][1]
+      depth = sorted_allele_coverage[3][1]
+      push!(report, (round(coverage,3), depth, "Either novel or not present; Allele $allele has $uncovered_kmers missing kmers, and no novel was found.")) # Coverage, Minkmer depth, Call
+      push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele]))
+    end
+  end # end of per locus loop to call;
+
+
+  # Also do purely by vote, to compare;
+  # votes report, find ties:
+  ties = DefaultDict{String,Vector{Int16}}(() -> Int16[])
+  vote_log = []
+  best_voted_alleles = []
+  for (idx,locus) in enumerate(loci)
+    sorted_vote = sort(collect(votes[idx]), by=x->-x[2])
+    push!(best_voted_alleles, loci2alleles[idx][sorted_vote[1][1]])
+    votes_txt = join(["$(loci2alleles[idx][al])($votes)" for (al,votes) in sorted_vote[1:min(20,end)]],",")
+    push!(vote_log, (loci_votes[idx], votes_txt))
+    # find if there was a tie:
+    if length(sorted_vote) > 1 && sorted_vote[1][2] == sorted_vote[2][2] # there is a tie;
+      for i in 1:length(sorted_vote)
+        if sorted_vote[i][2] < sorted_vote[1][2]
+          break
         end
-        println("Trying $(length(template_alleles)) templates for a novel allele.")
-        try_novel_allele = find_allele_variants(DNAKmer{k}, template_alleles, kmer_count)
-        # println("Trynovel:$try_novel_allele")
-        if try_novel_allele != nothing
-          n_mut, sequence, events, var_ab = try_novel_allele
-          if any([sequence == template_allele for template_allele in template_alleles])
-            # not a new allele; TODO: check why
-            println("Found the same allele, no novel! -> $(loci[idx])")
-            # TODO: find the correct covered; now just pick the best voted:
-            push!(best_alleles, "$(loci2alleles[idx][sorted_voted_alleles[1][1]])")
-          else
-           # found something:
-            novel_alleles[idx] = try_novel_allele
-            push!(best_alleles, "N")
-          end
-        else
-          # did not find anything
-          push!(best_alleles, "N?")
-        end
+        push!(ties[locus], sorted_vote[i][1])
       end
     end
   end
 
-  # get best voted:
-  # best_voted_alleles = [sort(collect(votes[idx]), by=x->-x[2])[1][1] for (idx,locus) in enumerate(loci)]
-  # translate alleles to original id:
-  # best_voted_alleles = [loci2alleles[locus_idx][best] for (locus_idx, best) in enumerate(best_voted_alleles)]
-  # check if there is a type on the database:
-  genotype, clonal_complex = _find_profile(best_alleles, profile)
+  return allele_calls, novel_alleles, best_voted_alleles, report, vote_log, ties, alleles_to_check
 
-  # write:
+end
+function write_calls{k}(::Type{DNAKmer{k}}, allele_calls, novel_alleles, best_voted_alleles, report, vote_log, ties, alleles_to_check, loci, sample, filename, profile)
+
+  # write the main call:
+  st, clonal_complex = _find_profile(allele_calls, profile)
   open(filename, "w") do f
     header = join(vcat(["Sample"], loci, ["ST", "clonal_complex"]), "\t")
     write(f,  "$header\n")
-    calls = join(vcat([sample], best_alleles, ["$genotype", clonal_complex]), "\t")
+    calls = join(vcat([sample], allele_calls, ["$st", clonal_complex]), "\t")
     write(f, "$calls\n")
   end
-  # votes, find ties:
-  ties = Dict{String,Vector{Int16}}()
-  open("$filename.votes.txt", "w") do f
-    write(f, "Locus\tTotalVotes\tTopVote\tAllele(votes),...\n")
-    for (idx,locus) in enumerate(loci)
-      max_idx = min(length(votes[idx]),10)
-      sorted_vote = sort(collect(votes[idx]), by=x->-x[2])
-      top_vote = sorted_vote[1][2] + (sorted_vote[end][2] < 0 ? abs(sorted_vote[end][2]) : 0)
-      votes_txt = join(["$(loci2alleles[idx][a])($b)" for (a,b) in sorted_vote],",")
-      # votes_txt = join(["$a($b)" for (a,b) in sorted_vote[1:max_idx]],",")
-      write(f, "$locus\t$(loci_votes[idx])\t$top_vote\t$votes_txt\n")
-      # ties:
-      if length(sorted_vote) > 1 && sorted_vote[1][2] == sorted_vote[2][2]
-        # find all ties:
-        tied_val = sorted_vote[1][2]
-        current = 1
-        ties[locus] = Int16[]
-        while (current <= length(sorted_vote) && sorted_vote[current][2] == tied_val)
-          push!(ties[locus], sorted_vote[current][1])
-          current += 1
-        end
-      end
+  # write the call report:
+  open("$filename.coverage.txt", "w") do f
+    write(f, "Locus\tCoverage\tMinKmerDepth\tCall\n")
+    for (locus, data) in zip(loci, report)
+      write(f, "$locus\t$(join(data,'\t'))\n")
     end
   end
+  # write the alleles with novel, missing, or multiple calls:
+  open("$filename.alleles_to_check.fasta", "w") do f
+    for (locus, al, seq) in alleles_to_check
+      write(f,">$(locus)_$al\n$seq\n")
+    end
+  end
+  # write the votes call:
+  st, clonal_complex = _find_profile(best_voted_alleles, profile)
+  open("$filename.byvote", "w") do f
+    header = join(vcat(["Sample"], loci, ["ST", "clonal_complex"]), "\t")
+    write(f,  "$header\n")
+    calls = join(vcat([sample], best_voted_alleles, ["$st", clonal_complex]), "\t")
+    write(f, "$calls\n")
+  end
+  # write the detailed votes:
+  open("$filename.votes.txt", "w") do f
+    write(f, "Locus\tTotalLocusVotes\tAllele(votes),...\n")
+    for (locus, data) in zip(loci, vote_log)
+      write(f, "$locus\t$(join(data,'\t'))\n")
+    end
+  end
+
   # write ties:
   open("$filename.ties.txt", "w") do f
     for (locus, tied_alleles) in sort(collect(ties), by=x->x[1])
@@ -410,7 +477,7 @@ function write_calls{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci,
 
 end
 
-function count_kmers{k}(::Type{DNAKmer{k}}, files, kmer_db)
+function count_kmers_in_db_only{k}(::Type{DNAKmer{k}}, files, kmer_db)
   # Count kmers:
   kmer_count = DefaultDict{DNAKmer{k},Int}(0)
   for f in files
@@ -418,10 +485,23 @@ function count_kmers{k}(::Type{DNAKmer{k}}, files, kmer_db)
     while (fq = fastq_read(istream))!=false
       for (pos, kmer) in each(DNAKmer{k}, DNASequence(fq.sequence.seq), 1)
         kmer = canonical(kmer)
-        # TODO: I have to count all, to find novel alleles; better way?
-        # if haskey(kmer_db, kmer)
+        if haskey(kmer_db, kmer)
           kmer_count[kmer] += 1
-        # end
+        end
+      end
+    end
+  end
+  return kmer_count
+end
+
+function count_kmers{k}(::Type{DNAKmer{k}}, files, kmer_db)
+  # Count kmers:
+  kmer_count = DefaultDict{DNAKmer{k},Int}(0)
+  for f in files
+    istream = fastq_open(f)
+    while (fq = fastq_read(istream))!=false
+      for (pos, kmer) in each(DNAKmer{k}, DNASequence(fq.sequence.seq), 1)
+        kmer_count[canonical(kmer)] += 1
       end
     end
   end

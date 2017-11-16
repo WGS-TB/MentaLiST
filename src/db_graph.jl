@@ -79,65 +79,63 @@ end
 
 function db_graph_contig_kmers{k}(::Type{DNAKmer{k}}, fastafiles)
   kmers = build(DNAKmer{k}, fastafiles)
-  # contig_kmers = Set{DNAKmer{k}}()
   contig_kmers = Dict{DNAKmer{k},Int16}()
   for contig in all_contigs(DNAKmer{k}, kmers)
-      # push!(contig_kmers, canonical(contig[1]))
       contig_kmers[canonical(contig[1])] = length(contig)
   end
-  # println(maximum(values(contig_kmers)))
   return contig_kmers
 end
 
 
-# CAlling:
-function sequence_coverage{k}(::Type{DNAKmer{k}}, sequence, kmer_count)
-  # find the minimum abundance of all kmers of the given variant
+# Calling:
+function sequence_coverage{k}(::Type{DNAKmer{k}}, sequence, kmer_count, kmer_thr=6)
+  # find the minimum coverage depth of all kmers of the given variant, and
+  # how many kmers are covered/uncovered
   smallest_coverage = 100000
   covered = 0
   uncovered = 0
   for (pos, kmer) in each(DNAKmer{k}, DNASequence(sequence))
     can_kmer = canonical(kmer)
-    if haskey(kmer_count, can_kmer)
+    cov = get(kmer_count, can_kmer, 0)
+    if cov >= kmer_thr
       covered += 1
-      cov = kmer_count[can_kmer]
-      if cov < smallest_coverage
-        smallest_coverage = cov
-      end
     else
       uncovered += 1
-      smallest_coverage = 0
+    end
+    if cov < smallest_coverage
+      smallest_coverage = cov
     end
   end
-  return smallest_coverage, covered/(covered+uncovered)
+  return smallest_coverage, covered, uncovered
 end
 
-
-function find_allele_variants{k}(::Type{DNAKmer{k}}, template_sequences, kmer_count)
+function find_allele_variants{k}(::Type{DNAKmer{k}}, allele_seqs, template_alleles, kmer_count, kmer_thr=8, max_mutations=10)
   novel_allele_list = []
   found = Set{String}()
-  max_mutations = 10
-  function scan_variant(n_mut, sequence, events)
+  function scan_variant(n_mut, allele, sequence, events, start_pos=1)
     if n_mut > max_mutations
       return
     end
-    THR = 10 # TODO: set a global threshold somewhere, also as parameter;
     last_kmer_present = false
     for (pos, kmer) in each(DNAKmer{k}, DNASequence(sequence))
+      if pos < start_pos
+        continue
+      end
       can_kmer = canonical(kmer)
-      if get(kmer_count, can_kmer, 0) > THR
-        if pos > 1 && (!last_kmer_present)
+      if get(kmer_count, can_kmer, 0) >= kmer_thr
+        if pos > start_pos +1 && (!last_kmer_present)
           # found a kmer and the last was not there; check if I can find kmer variations for the previous position
           km = "$kmer"
           for base in ["A","C","T","G"]
-            if get(kmer_count, canonical(DNAKmer{k}("$base$(km[1:end-1])")), 0) > THR
+            if get(kmer_count, canonical(DNAKmer{k}("$base$(km[1:end-1])")), 0) >= kmer_thr
               # found a kmer variant;
+              # Test one more kmer before adding to the pool:
               # substitution at position pos-1
               substitution_seq = sequence[1:pos-2] * base * sequence[pos:end]
-              push!(candidate_list, (n_mut+1, substitution_seq, [events; [("M",pos-1,base)]]))
+              push!(candidate_list, (n_mut+1, allele, substitution_seq, [events; [("S",pos-1,"$(sequence[pos-1])->$base")]], start_pos))
               # insertion:
               insertion_seq = sequence[1:pos-1] * base * sequence[pos:end]
-              push!(candidate_list, (n_mut+1, insertion_seq, [events; [("I",pos-1,base)]]))
+              push!(candidate_list, (n_mut+1, allele, insertion_seq, [events; [("I",pos-1,base)]], start_pos))
               # deletion:
               for i in 0:2
                 if pos-2-i < 1
@@ -145,7 +143,7 @@ function find_allele_variants{k}(::Type{DNAKmer{k}}, template_sequences, kmer_co
                 end
                 if sequence[pos-2-i:pos-2-i] == base
                   deletion_seq = sequence[1:pos-2-i] * sequence[pos:end]
-                  push!(candidate_list, (n_mut+1+i, deletion_seq, [events; [("D",pos-1,"$(i+1)")]]))
+                  push!(candidate_list, (n_mut+1+i, allele, deletion_seq, [events; [("D",pos-1,"$(i+1)")]], start_pos))
                   break
                 end
               end
@@ -160,14 +158,14 @@ function find_allele_variants{k}(::Type{DNAKmer{k}}, template_sequences, kmer_co
           # last_kmer_present was present, but this not; check kmer variations for nest position
           km = "$kmer"
           for base in ["A","C","T","G"]
-            if get(kmer_count, canonical(DNAKmer{k}("$(km[1:end-1])$base")), 0) > THR
+            if get(kmer_count, canonical(DNAKmer{k}("$(km[1:end-1])$base")), 0) >= kmer_thr
               # println("Found a $base at pos $(pos+k-1)")
               # substitution at position pos+k-1;
               substitution_seq = sequence[1:pos+k-2] * base * sequence[pos+k:end]
-              push!(candidate_list, (n_mut+1, substitution_seq, [events; [("M",pos+k-1,base)]]))
+              push!(candidate_list, (n_mut+1, allele, substitution_seq, [events; [("S",pos+k-1,"$(sequence[pos+k-1])->$base")]], pos-1))
               # insertion:
               insertion_seq = sequence[1:pos+k-2] * base * sequence[pos+k-1:end]
-              push!(candidate_list, (n_mut+1, insertion_seq, [events; [("I",pos+k-1,base)]]))
+              push!(candidate_list, (n_mut+1, allele, insertion_seq, [events; [("I",pos+k-1,base)]], pos-1))
               # deletion:
               for i in 0:2
                 # println("trying $(pos+k+i), found $(sequence[pos+k+i]) (want $base) $(sequence[pos+k+i:pos+k+i] == base).")
@@ -177,7 +175,7 @@ function find_allele_variants{k}(::Type{DNAKmer{k}}, template_sequences, kmer_co
                 if sequence[pos+k+i:pos+k+i] == base
                   # println("Found a possible deletion, pos $(pos+k-1) to $(pos+k+i-1)")
                   deletion_seq = sequence[1:pos+k-2] * sequence[pos+k+i:end]
-                  push!(candidate_list, (n_mut+1+i, deletion_seq, [events; [("D",pos+k-1,"$(i+1)")]]))
+                  push!(candidate_list, (n_mut+1+i, allele, deletion_seq, [events; [("D",pos+k-1,"$(i+1)")]], pos-1))
                   break
                 end
               end
@@ -191,20 +189,20 @@ function find_allele_variants{k}(::Type{DNAKmer{k}}, template_sequences, kmer_co
     end
     # passed without suggesting mutations, test this variant:
     var_ab = sequence_coverage(DNAKmer{k}, sequence, kmer_count)[1]
-    if var_ab > 0
+    if var_ab >= kmer_thr
       if !in(sequence, found)
-        push!(novel_allele_list, (n_mut, sequence, events, var_ab))
+        push!(novel_allele_list, (n_mut, allele, sequence, events, var_ab))
         push!(found, sequence)
         max_mutations = n_mut
       end
     end
   end
-
-  candidate_list = [(0, template_sequence, []) for template_sequence in template_sequences]
+  # candidate_list = [(0, template_sequence, [], 0) for template_sequence in template_sequences]
+  candidate_list = [(0, allele, allele_seqs[allele], [], 0) for allele in template_alleles]
   idx = 1
   while idx <= length(candidate_list)
-    n_mut, candidate_sequence, mutations = candidate_list[idx]
-    scan_variant(n_mut, candidate_sequence, mutations)
+    n_mut, allele, candidate_sequence, mutations, start_pos = candidate_list[idx]
+    scan_variant(n_mut, allele, candidate_sequence, mutations, start_pos)
     idx += 1
   end
 
@@ -217,4 +215,19 @@ function find_allele_variants{k}(::Type{DNAKmer{k}}, template_sequences, kmer_co
     return nothing
   end
 
+end
+
+
+
+function describe_mutation(mut)
+  mut, pos, desc = mut
+  if mut == "D"
+    return "Del of len $desc at pos $pos"
+  elseif mut == "I"
+    return "Ins of base $desc at pos $pos"
+  elseif mut == "S"
+    return "Subst $desc at pos $pos"
+  else
+    return ""
+  end
 end
