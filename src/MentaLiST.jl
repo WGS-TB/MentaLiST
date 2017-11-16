@@ -51,6 +51,12 @@ function parse_commandline()
           help = "Minimum # of times a kmer is seen, to be considered 'solid', meaning actually present in the sample."
           arg_type = Int
           default = 10
+        "--output_votes"
+          help = "Also outputs the results for the original voting algorithm, without novel."
+          action = :store_true
+        "--output_special"
+          help = "Also outputs a FASTA file with the alleles from special cases such as incomplete coverage, novel, and multiple alleles. This can help for creating a smaller MentaLiST database for testing different parameters or for using a read mapper to investigate the special cases more thoroughly. "
+          action = :store_true
         "files"
           nargs = '*'
           help = "FastQ input files"
@@ -148,10 +154,10 @@ function call_mlst(args)
   kmer_count = count_kmers(DNAKmer{k}, args["files"], kmer_db)
   info("Voting for alleles ... ")
   votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
-  info("Calling alleles ...")
-  allele_calls, novel_alleles, best_voted_alleles, report, vote_log, ties, alleles_to_check = call_alleles_from_votes(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], args["kt"], args["mutation_threshold"])
+  info("Calling alleles and novel alleles ...")
+  allele_calls, novel_alleles, report, alleles_to_check, voting_result = call_alleles(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], args["kt"], args["mutation_threshold"], args["output_votes"])
   info("Writing output ...")
-  write_calls(DNAKmer{k}, allele_calls, novel_alleles, best_voted_alleles, report, vote_log, ties, alleles_to_check, loci, args["s"], args["o"], profile)
+  write_calls(DNAKmer{k}, allele_calls, novel_alleles, report, alleles_to_check, loci, voting_result, args["s"], args["o"], profile, args["output_special"])
 
   info("Done.")
 end

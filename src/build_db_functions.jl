@@ -279,8 +279,7 @@ function read_alleles(fastafile)
   return alleles
 end
 
-# TODO: a command line parameter for the keyword arguments
-function call_alleles_from_votes{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci, loci2alleles, fasta_files, kmer_thr, max_mutations)
+function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci, loci2alleles, fasta_files, kmer_thr, max_mutations, output_votes)
   allele_calls = String[]
   novel_alleles = Dict{Int, Any}()
   report = []
@@ -290,26 +289,24 @@ function call_alleles_from_votes{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_
     # 1st - if no locus votes, no presence:
     if loci_votes[idx] == 0
       push!(allele_calls, "0")
-      # println("L:$(loci[idx]) Zero votes")
       push!(report, (0.0,0,"Not present, no kmers found.")) # Coverage, Minkmer depth, Call
       continue
     end
     sorted_voted_alleles = sort(collect(votes[idx]), by=x->-x[2])
     allele_seqs = read_alleles(fasta_files[idx])
     allele_coverage = [(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)) for (al, votes) in sorted_voted_alleles[1:min(20,end)]]
-    # println("L:$(loci[idx]) $([(loci2alleles[idx][x[1]],x[2],x[3]) for x in allele_coverage])")
     # sequence_coverage returns smallest depth of coverage, # kmers covered, # kmers uncovered
-    # covered:
+    # each element in allele_coverage is then a tuple -> (allele, votes, (depth, # covered, # uncovered))
+    # filter to find fully covered alleles :
     covered = [x for x in allele_coverage if (x[3][1] >= kmer_thr)] # if I remove negative votes, I might reconstruct this on the novel anyway; better to flag output
-    # each element in covered is a tuple -> (allele, votes, (depth, # covered, # uncovered))
-
-    # println("L:$(loci[idx]) Covered:$([(loci2alleles[idx][x[1]],x[2],x[3]) for x in covered])")
     if length(covered) == 1
       # choose the only fully covered allele
       allele = covered[1][1]
+      allele_votes  = covered[1][2]
       depth = covered[1][3][1]
       push!(allele_calls, "$(loci2alleles[idx][allele])")
-      push!(report, (1, depth, "$(loci2alleles[idx][allele])")) # Coverage, Minkmer depth, Call
+      warning = allele_votes < 0 ? " Call with negative votes: $allele_votes." : ""
+      push!(report, (1, depth, "Called allele $(loci2alleles[idx][allele]).$warning")) # Coverage, Minkmer depth, Call
       continue
     end
     if length(covered) > 1
@@ -322,7 +319,7 @@ function call_alleles_from_votes{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_
       push!(report, (1, "*", "Multiple possible alleles:$multiple_alleles with depth $multiple_depth and votes $multiple_votes. Most voted ($(loci2alleles[idx][allele])) is chosen on call file.")) # Coverage, Minkmer depth, Call
       # save those alleles:
       for x in covered
-        push!(alleles_to_check, (locus, loci2alleles[idx][x[1]], allele_seqs[x[1]]))
+        push!(alleles_to_check, (locus, loci2alleles[idx][x[1]], allele_seqs[x[1]], "Multiple alleles present for this locus. Depth:$(x[3][1]) Votes:$(x[2])"))
       end
       continue
     end
@@ -331,92 +328,98 @@ function call_alleles_from_votes{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_
     sorted_allele_coverage = sort(allele_coverage, by=x->x[3][3])
     uncovered_kmers = sorted_allele_coverage[1][3][3]
     coverage = sorted_allele_coverage[1][3][2] / (sorted_allele_coverage[1][3][3] + sorted_allele_coverage[1][3][2])
-    println("Novel; Sorted coverage:\n$(join(sorted_allele_coverage,','))")
-    # if does not have at least 0.7 coverage, consider not present;
-    # if largest_coverage <= 0 # search all;
     # each mutation gives around k uncovered kmers, so if smallest_uncovered > k * max_mutations, then declare missing;
-    if uncovered_kmers > k * max_mutations # more than 3 big bubbles, consider not present; TODO: better criteria?
+    if uncovered_kmers > k * max_mutations # consider not present; TODO: better criteria?
       push!(allele_calls, "0") # not present
       allele = sorted_allele_coverage[1][1]
       depth = sorted_allele_coverage[3][1]
-      push!(report, (round(coverage,3), depth, "Not present, allele $allele is the best but below threshold with $uncovered_kmers missing kmers.")) # Coverage, Minkmer depth, Call
       # save allele
-      push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele]))
+      push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Best voted allele, but declared not present, with $uncovered_kmers uncovered kmers and coverage $coverage."))
+      push!(report, (round(coverage,3), depth, "Not present, allele $allele is the best voted but below threshold with $uncovered_kmers missing kmers.")) # Coverage, Minkmer depth, Call
       continue
     end
     # otherwise, try to find a novel allele; get the most covered allele as template:
     template_alleles = [sorted_allele_coverage[1][1]]
-    # if there is a tie with other alleles, also include them:
-    for i in 2:min(5, length(sorted_allele_coverage))
+    # if there is a tie with other alleles, also include them, up to 10.
+    for i in 2:min(10, length(sorted_allele_coverage))
       if sorted_allele_coverage[i][3][3] > uncovered_kmers
         break
       end
       push!(template_alleles, sorted_allele_coverage[i][1])
     end
     # try the template(s)
-    println("Trying $(length(template_alleles)) templates for a novel allele.")
     try_novel_allele = find_allele_variants(DNAKmer{k}, allele_seqs, template_alleles, kmer_count, kmer_thr, max_mutations)
-    println("Trynovel:$try_novel_allele")
     if try_novel_allele != nothing
+      # found something;
       n_mut, used_template_allele, sequence, events, var_ab = try_novel_allele
+      # sanity check, test if we did not find a novel that is already existing!
       if any([sequence == allele_seqs[template_allele] for template_allele in template_alleles])
         # not a new allele; TODO: check why
         println("******************************** Found the same allele, no novel! -> $(loci[idx])")
-        # TODO: find the correct covered; now just pick the best voted:
+        # TODO: find the correct covered; now just pick the best voted; this should not happen anyway, if it is, check why.
         allele = sorted_voted_alleles[1][1]
         push!(allele_calls, "$(loci2alleles[idx][allele])")
         depth = sorted_allele_coverage[3][1]
         push!(report, (1, var_ab, "$(loci2alleles[idx][allele])")) # Coverage, Minkmer depth, Call
 
       else
-       # found something, save the allele;
+       # found really something new, save the novel allele;
         novel_alleles[idx] = try_novel_allele
         push!(allele_calls, "N")
+        # report:
         mutations_txt = n_mut > 1 ? "mutations" : "mutation"
         mutation_desc = join([describe_mutation(ev) for ev in events], ", ")
         push!(report, (1, var_ab, "Novel, $n_mut $mutations_txt from allele $used_template_allele: $mutation_desc")) # Coverage, Minkmer depth, Call
         # save, closest and novel:
-        push!(alleles_to_check, (locus, loci2alleles[idx][used_template_allele], allele_seqs[used_template_allele]))
-        push!(alleles_to_check, (locus, "Novel", sequence))
+        push!(alleles_to_check, (locus, loci2alleles[idx][used_template_allele], allele_seqs[used_template_allele], "Template for novel allele."))
+        push!(alleles_to_check, (locus, "Novel", sequence, "$n_mut $mutations_txt from allele $used_template_allele: $mutation_desc"))
 
       end
     else
-      # did not find anything; output 0
+      # did not find anything; output 0/N, not sure which;
       push!(allele_calls, "0/N?")
       allele = sorted_allele_coverage[1][1]
       depth = sorted_allele_coverage[3][1]
       push!(report, (round(coverage,3), depth, "Either novel or not present; Allele $allele has $uncovered_kmers missing kmers, and no novel was found.")) # Coverage, Minkmer depth, Call
-      push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele]))
+      push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Either novel or not present; Allele $allele has $uncovered_kmers missing kmers, and no novel was found."))
     end
   end # end of per locus loop to call;
 
-
-  # Also do purely by vote, to compare;
-  # votes report, find ties:
-  ties = DefaultDict{String,Vector{Int16}}(() -> Int16[])
-  vote_log = []
-  best_voted_alleles = []
-  for (idx,locus) in enumerate(loci)
-    sorted_vote = sort(collect(votes[idx]), by=x->-x[2])
-    push!(best_voted_alleles, loci2alleles[idx][sorted_vote[1][1]])
-    votes_txt = join(["$(loci2alleles[idx][al])($votes)" for (al,votes) in sorted_vote[1:min(20,end)]],",")
-    push!(vote_log, (loci_votes[idx], votes_txt))
-    # find if there was a tie:
-    if length(sorted_vote) > 1 && sorted_vote[1][2] == sorted_vote[2][2] # there is a tie;
-      for i in 1:length(sorted_vote)
-        if sorted_vote[i][2] < sorted_vote[1][2]
-          break
+  # Also do voting output?
+  if output_votes
+    ties = DefaultDict{String,Vector{Int16}}(() -> Int16[])
+    vote_log = []
+    best_voted_alleles = []
+    for (idx,locus) in enumerate(loci)
+      # if locus has no votes (no kmer present), output a zero:
+      if loci_votes[idx] == 0
+        push!(best_voted_alleles, "0")
+        continue
+      end
+      # if it has votes, sort and pick the best;
+      sorted_vote = sort(collect(votes[idx]), by=x->-x[2])
+      push!(best_voted_alleles, loci2alleles[idx][sorted_vote[1][1]])
+      votes_txt = join(["$(loci2alleles[idx][al])($votes)" for (al,votes) in sorted_vote[1:min(20,end)]],",")
+      push!(vote_log, (loci_votes[idx], votes_txt))
+      # find if there was a tie:
+      if length(sorted_vote) > 1 && sorted_vote[1][2] == sorted_vote[2][2] # there is a tie;
+        for i in 1:length(sorted_vote)
+          if sorted_vote[i][2] < sorted_vote[1][2]
+            break
+          end
+          push!(ties[locus], sorted_vote[i][1])
         end
-        push!(ties[locus], sorted_vote[i][1])
       end
     end
+    voting_result = best_voted_alleles, vote_log, ties
+  else
+    voting_result = nothing
   end
 
-  return allele_calls, novel_alleles, best_voted_alleles, report, vote_log, ties, alleles_to_check
-
+  return allele_calls, novel_alleles, report, alleles_to_check, voting_result
 end
-function write_calls{k}(::Type{DNAKmer{k}}, allele_calls, novel_alleles, best_voted_alleles, report, vote_log, ties, alleles_to_check, loci, sample, filename, profile)
 
+function write_calls{k}(::Type{DNAKmer{k}}, allele_calls, novel_alleles, report, alleles_to_check, loci, voting_result, sample, filename, profile, output_special_cases)
   # write the main call:
   st, clonal_complex = _find_profile(allele_calls, profile)
   open(filename, "w") do f
@@ -433,47 +436,52 @@ function write_calls{k}(::Type{DNAKmer{k}}, allele_calls, novel_alleles, best_vo
     end
   end
   # write the alleles with novel, missing, or multiple calls:
-  open("$filename.alleles_to_check.fasta", "w") do f
-    for (locus, al, seq) in alleles_to_check
-      write(f,">$(locus)_$al\n$seq\n")
-    end
-  end
-  # write the votes call:
-  st, clonal_complex = _find_profile(best_voted_alleles, profile)
-  open("$filename.byvote", "w") do f
-    header = join(vcat(["Sample"], loci, ["ST", "clonal_complex"]), "\t")
-    write(f,  "$header\n")
-    calls = join(vcat([sample], best_voted_alleles, ["$st", clonal_complex]), "\t")
-    write(f, "$calls\n")
-  end
-  # write the detailed votes:
-  open("$filename.votes.txt", "w") do f
-    write(f, "Locus\tTotalLocusVotes\tAllele(votes),...\n")
-    for (locus, data) in zip(loci, vote_log)
-      write(f, "$locus\t$(join(data,'\t'))\n")
-    end
-  end
-
-  # write ties:
-  open("$filename.ties.txt", "w") do f
-    for (locus, tied_alleles) in sort(collect(ties), by=x->x[1])
-      ties_txt = join(["$t" for t in tied_alleles],", ")
-      write(f, "$locus\t$ties_txt\n")
-    end
-  end
-
-  # write novel alleles:
-  open("$filename.novel.fa", "w") do fasta
-    open("$filename.novel.txt", "w") do text
-      write(text, "Loci\tMinKmerAbundance\tNmut\tDesc\n")
-      for (idx, novel_allele) in sort(collect(novel_alleles), by=x->x[1])
-        n_mut, seq, events, abundance = novel_allele
-        write(fasta, ">$(loci[idx])\n$seq\n")
-        write(text, "$(loci[idx])\t$abundance\t$n_mut\t$events\n")
+  if output_special_cases
+    open("$filename.special_cases.fa", "w") do f
+      for (locus, al, seq, desc) in alleles_to_check
+        write(f,">$(locus)_$al $desc\n$seq\n")
       end
     end
   end
+  # write novel alleles:
+  open("$filename.novel.fa", "w") do fasta
+    open("$filename.novel.txt", "w") do text
+      write(text, "Loci\tMinKmerDepth\tNmut\tDesc\n")
+      for (idx, novel_allele) in sort(collect(novel_alleles), by=x->x[1])
+        n_mut, template_idx, seq, events, abundance = novel_allele
+        write(fasta, ">$(loci[idx])\n$seq\n")
+        mutation_desc = join([describe_mutation(ev) for ev in events], ", ")
+        write(text, "$(loci[idx])\t$abundance\t$n_mut\t$mutation_desc\n")
+      end
+    end
+  end
+  # write also the votes is we got them:
+  if voting_result != nothing
+    best_voted_alleles, vote_log, ties = voting_result
+    # write the votes call:
+    st, clonal_complex = _find_profile(best_voted_alleles, profile)
+    open("$filename.byvote", "w") do f
+      header = join(vcat(["Sample"], loci, ["ST", "clonal_complex"]), "\t")
+      write(f,  "$header\n")
+      calls = join(vcat([sample], best_voted_alleles, ["$st", clonal_complex]), "\t")
+      write(f, "$calls\n")
+    end
+    # write the detailed votes:
+    open("$filename.votes.txt", "w") do f
+      write(f, "Locus\tTotalLocusVotes\tAllele(votes),...\n")
+      for (locus, data) in zip(loci, vote_log)
+        write(f, "$locus\t$(join(data,'\t'))\n")
+      end
+    end
 
+    # write ties:
+    open("$filename.ties.txt", "w") do f
+      for (locus, tied_alleles) in sort(collect(ties), by=x->x[1])
+        ties_txt = join(["$t" for t in tied_alleles],", ")
+        write(f, "$locus\t$ties_txt\n")
+      end
+    end
+  end
 
 end
 
