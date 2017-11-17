@@ -134,6 +134,8 @@ end
 #### Main COMMAND functions:
 function call_mlst(args)
   include("build_db_functions.jl")
+  # check if the files exist:
+  check_files([args["db"];args["files"]])
   info("Opening kmer database ... ")
   kmer_db, loci, loci2alleles, k, profile = open_db(args["db"])
   info("Opening fastq file(s) ... ")
@@ -173,6 +175,7 @@ end
 
 function build_db(args)
   include("build_db_functions.jl")
+  check_files(args["fasta_files"])
   k::Int8 = args["k"]
   info("Opening FASTA files ... ")
   results, loci = kmer_class_for_each_locus(k, args["fasta_files"], !args["disable_compression"])
