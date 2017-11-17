@@ -502,7 +502,7 @@ function count_kmers_in_db_only{k}(::Type{DNAKmer{k}}, files, kmer_db)
   return kmer_count
 end
 
-function count_kmers{k}(::Type{DNAKmer{k}}, files, kmer_db)
+function count_kmers{k}(::Type{DNAKmer{k}}, files)
   # Count kmers:
   kmer_count = DefaultDict{DNAKmer{k},Int}(0)
   for f in files

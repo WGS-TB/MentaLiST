@@ -151,7 +151,7 @@ function call_mlst(args)
   kmer_db, loci, loci2alleles, k, profile, build_args = open_db(args["db"])
 
   info("Opening fastq file(s) and counting kmers ... ")
-  kmer_count = count_kmers(DNAKmer{k}, args["files"], kmer_db)
+  kmer_count = count_kmers(DNAKmer{k}, args["files"])
   info("Voting for alleles ... ")
   votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
   info("Calling alleles and novel alleles ...")
