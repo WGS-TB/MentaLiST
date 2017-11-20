@@ -436,7 +436,7 @@ function write_calls{k}(::Type{DNAKmer{k}}, allele_calls, novel_alleles, report,
     end
   end
   # write the alleles with novel, missing, or multiple calls:
-  if output_special_cases
+  if output_special_cases && length(alleles_to_check) > 0
     open("$filename.special_cases.fa", "w") do f
       for (locus, al, seq, desc) in alleles_to_check
         write(f,">$(locus)_$al $desc\n$seq\n")
@@ -444,14 +444,16 @@ function write_calls{k}(::Type{DNAKmer{k}}, allele_calls, novel_alleles, report,
     end
   end
   # write novel alleles:
-  open("$filename.novel.fa", "w") do fasta
-    open("$filename.novel.txt", "w") do text
-      write(text, "Loci\tMinKmerDepth\tNmut\tDesc\n")
-      for (idx, novel_allele) in sort(collect(novel_alleles), by=x->x[1])
-        n_mut, template_idx, seq, events, abundance = novel_allele
-        write(fasta, ">$(loci[idx])\n$seq\n")
-        mutation_desc = join([describe_mutation(ev) for ev in events], ", ")
-        write(text, "$(loci[idx])\t$abundance\t$n_mut\t$mutation_desc\n")
+  if length(novel_alleles) > 0
+    open("$filename.novel.fa", "w") do fasta
+      open("$filename.novel.txt", "w") do text
+        write(text, "Loci\tMinKmerDepth\tNmut\tDesc\n")
+        for (idx, novel_allele) in sort(collect(novel_alleles), by=x->x[1])
+          n_mut, template_idx, seq, events, abundance = novel_allele
+          write(fasta, ">$(loci[idx])\n$seq\n")
+          mutation_desc = join([describe_mutation(ev) for ev in events], ", ")
+          write(text, "$(loci[idx])\t$abundance\t$n_mut\t$mutation_desc\n")
+        end
       end
     end
   end
@@ -475,10 +477,12 @@ function write_calls{k}(::Type{DNAKmer{k}}, allele_calls, novel_alleles, report,
     end
 
     # write ties:
-    open("$filename.ties.txt", "w") do f
-      for (locus, tied_alleles) in sort(collect(ties), by=x->x[1])
-        ties_txt = join(["$t" for t in tied_alleles],", ")
-        write(f, "$locus\t$ties_txt\n")
+    if length(ties) > 0
+      open("$filename.ties.txt", "w") do f
+        for (locus, tied_alleles) in sort(collect(ties), by=x->x[1])
+          ties_txt = join(["$t" for t in tied_alleles],", ")
+          write(f, "$locus\t$ties_txt\n")
+        end
       end
     end
   end
