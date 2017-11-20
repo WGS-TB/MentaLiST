@@ -4,6 +4,8 @@ using Suppressor
   import GZip
 end
 
+mentalist_shared_data_path = string(ENV["HOME"], "/", ".mentalist")
+
 function _get_first_line(node)
   return split(content(node), "\n")[1]
 end
@@ -12,8 +14,11 @@ function _older_than_a_day(file)
   return (time() - stat(file).ctime)/86400 > 1
 end
 
-function _pubmlst_xml()
-  dbases_file = string(tempdir(), "/", "dbases.xml")
+function _pubmlst_xml(download_dir=mentalist_shared_data_path)
+  if !isdir(download_dir)
+    mkdir(download_dir)
+  end
+  dbases_file = string(download_dir, "/", "dbases.xml")
   if !isfile(dbases_file) || _older_than_a_day(dbases_file)
     info(STDERR, "Downloading the MLST database xml file...")
     download("https://pubmlst.org/data/dbases.xml", dbases_file)
@@ -22,8 +27,11 @@ function _pubmlst_xml()
   return LightXML.parse_file(dbases_file)
 end
 
-function _cgmlst_http()
-  cgmlst_file = string(tempdir(), "/", "cgmlst.html")
+function _cgmlst_http(download_dir=mentalist_shared_data_path)
+  if !isdir(download_dir)
+    mkdir(download_dir)
+  end
+  cgmlst_file = string(download_dir, "/", "cgmlst.html")
   if !isfile(cgmlst_file)
     info(STDERR, "Downloading the cgmlist HTML to find schema...")
     download("www.cgmlst.org/ncs", cgmlst_file)
