@@ -11,21 +11,24 @@ end
 function _older_than_a_day(file)
   return (time() - stat(file).ctime)/86400 > 1
 end
+
 function _pubmlst_xml()
-  if !isfile("dbases.xml") || _older_than_a_day("dbases.xml")
+  dbases_file = string(tempdir(), "/", "dbases.xml")
+  if !isfile(dbases_file) || _older_than_a_day(dbases_file)
     info(STDERR, "Downloading the MLST database xml file...")
-    download("https://pubmlst.org/data/dbases.xml", "dbases.xml")
+    download("https://pubmlst.org/data/dbases.xml", dbases_file)
   end
   # get
-  return LightXML.parse_file("dbases.xml")
+  return LightXML.parse_file(dbases_file)
 end
 
 function _cgmlst_http()
-  if !isfile("cgmlst.html")
+  cgmlst_file = string(tempdir(), "/", "cgmlst.html")
+  if !isfile(cgmlst_file)
     info(STDERR, "Downloading the cgmlist HTML to find schema...")
-    download("www.cgmlst.org/ncs", "cgmlst.html")
+    download("www.cgmlst.org/ncs", cgmlst_file)
   end
-  return "cgmlst.html"
+  return cgmlst_file
 end
 
 
