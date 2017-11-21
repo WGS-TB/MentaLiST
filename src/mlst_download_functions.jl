@@ -49,8 +49,8 @@ function list_pubmlst_schema(prefix)
 end
 
 
-function _download_to_folder(url, output_dir, overwrite=false)
-  filepath = joinpath(output_dir, basename(url))
+function _download_to_folder(url, output_dir, overwrite=false, filename=nothing)
+  filepath = joinpath(output_dir, filename == nothing ? basename(url) : filename)
   if overwrite || (!isfile(filepath) || _older_than_a_day(filepath))
     mkpath(output_dir)
     download(url, filepath)
@@ -129,6 +129,48 @@ function _find_cgmlst_id(target_id)
     end
   end
   return nothing
+end
+
+function download_enterobase_scheme(scheme, s_type, output_dir, overwrite=false)
+  sp = Dict("E"=>"ESC", "S"=>"SAL", "Y"=>"YER")
+  if !haskey(sp, scheme)
+    info("Scheme has to be E, S, or Y.")
+    exit(-1)
+  end
+  verbose = Dict("S"=>"Salmonella", "Y"=>"Yersinia", "E"=>"Escherichia/Shigella")
+  sp_code = "$(sp[scheme])wgMLST"
+  tp_code = "$(s_type)MLSTv1"
+  filename = joinpath(dirname(@__FILE__), "../scripts/$(sp_code).txt")
+
+
+  loci = String[]
+  open(filename) do f
+    for l in eachline(f)
+      values = split(strip(l),"\t")
+      if startswith(values[1], s_type) # add locus if it is cg or wgmlst, according to input option
+        push!(loci, split(values[2],' ')[1])
+      end
+    end
+  end
+  loci_files = String[]
+  for locus in loci
+    fasta_locus = joinpath(output_dir, "$locus.fa")
+    push!(loci_files, fasta_locus)
+    if isfile(fasta_locus)
+      continue
+    end
+    gzip_locus = _download_to_folder("http://enterobase.warwick.ac.uk/download_data?species=$sp_code&scheme=$tp_code&allele=$locus", output_dir, false, "$locus.fa.gz")
+    # gunzip to a FASTA and remove the gzip file;
+    f_in = GZip.open(gzip_locus)
+    f_out = open(fasta_locus, "w")
+    while !eof(f_in)
+      write(f_out, readline(f_in))
+    end
+    close(f_in)
+    close(f_out)
+    rm(gzip_locus)
+  end
+  return loci_files
 end
 
 function download_cgmlst_scheme(target_id, output_dir, overwrite=false)

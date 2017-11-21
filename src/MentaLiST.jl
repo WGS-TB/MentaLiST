@@ -27,6 +27,9 @@ function parse_commandline()
       "download_cgmlst"
           help = "Dowload a MLST scheme from cgmlst.org and build a MLST k-mer database."
           action = :command
+      "download_enterobase"
+          help = "Dowload a MLST scheme from Enterobase (enterobase.warwick.ac.uk) and build a MLST k-mer database."
+          action = :command
 
     end
     # Calling MLST options:
@@ -141,6 +144,32 @@ function parse_commandline()
         action = :store_true
     end
 
+    @add_arg_table s["download_enterobase"] begin
+      "-o", "--output"
+        help = "Output folder for the scheme files."
+        arg_type = String
+        required = true
+      "-s", "--scheme"
+        help = "Letter identifying which scheme: (S)almonella, (Y)ersinia, or (E)scherichia/Shigella."
+        arg_type = String
+        required = true
+      "-t", "--type"
+        help = "Choose the type: 'cg' or 'wg' for cgMLST or wgMLST scheme, respectively."
+        arg_type = String
+        required = true
+      "-k"
+        help = "K-mer size"
+        required = true
+        arg_type = Int8
+      "--db"
+        help = "Output file for the kmer database."
+        arg_type = String
+        required = true
+      "-c", "--disable_compression"
+        help = "Disables the default compression of the database, that stores only the most informative kmers. Not recommended unless for debugging."
+        action = :store_true
+    end
+
     return parse_args(s)
 end
 
@@ -192,6 +221,15 @@ function download_cgmlst(args)
   build_db(args)
 end
 
+function download_enterobase(args)
+  include("mlst_download_functions.jl")
+  loci_files = download_enterobase_scheme(args["scheme"], args["type"], args["output"])
+  info("Building the k-mer database ...")
+  args["fasta_files"] = loci_files
+  args["profile"] = nothing
+  build_db(args)
+end
+
 function build_db(args)
   include("build_db_functions.jl")
   check_files(args["fasta_files"])
@@ -225,6 +263,8 @@ function main()
     list_cgmlst(args["list_cgmlst"])
   elseif args["%COMMAND%"] == "download_cgmlst"
     download_cgmlst(args["download_cgmlst"])
+  elseif args["%COMMAND%"] == "download_enterobase"
+    download_enterobase(args["download_enterobase"])
   end
 end
 
