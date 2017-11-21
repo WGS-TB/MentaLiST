@@ -10,6 +10,14 @@ using OpenGene
 end
 include("db_graph.jl")
 
+function check_files(files)
+  dont_exist = [file for file in files if !isfile(file)]
+  if length(dont_exist) > 0
+    Lumberjack.warn("The following input file(s) could not be found: $(join(dont_exist,',')), aborting ...")
+    exit(-1)
+  end
+end
+
 function complement_alleles(vector, m)
   comp_vector = Int16[]
   expected::Int16 = 1
