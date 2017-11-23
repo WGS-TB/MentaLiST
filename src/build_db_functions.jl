@@ -335,15 +335,16 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
     # Try to find novel; sort by # of uncovered kmers or % covered
     sorted_allele_coverage = sort(allele_coverage, by=x->x[3][3])
     uncovered_kmers = sorted_allele_coverage[1][3][3]
-    coverage = sorted_allele_coverage[1][3][2] / (sorted_allele_coverage[1][3][3] + sorted_allele_coverage[1][3][2])
+    covered_kmers = sorted_allele_coverage[1][3][2]
+    coverage = covered_kmers / (covered_kmers + uncovered_kmers)
     # each mutation gives around k uncovered kmers, so if smallest_uncovered > k * max_mutations, then declare missing;
     if uncovered_kmers > k * max_mutations # consider not present; TODO: better criteria?
       push!(allele_calls, "0") # not present
       allele = sorted_allele_coverage[1][1]
-      depth = sorted_allele_coverage[3][1]
+      depth = sorted_allele_coverage[1][3][1]
       # save allele
       push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Best voted allele, but declared not present, with $uncovered_kmers uncovered kmers and coverage $coverage."))
-      push!(report, (round(coverage,3), depth, "Not present, allele $allele is the best voted but below threshold with $uncovered_kmers missing kmers.")) # Coverage, Minkmer depth, Call
+      push!(report, (round(coverage,4), depth, "Not present; allele $allele is the best voted but below threshold with $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers.")) # Coverage, Minkmer depth, Call
       continue
     end
     # otherwise, try to find a novel allele; get the most covered allele as template:
