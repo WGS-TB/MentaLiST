@@ -379,10 +379,10 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
         # report:
         mutations_txt = n_mut > 1 ? "mutations" : "mutation"
         mutation_desc = join([describe_mutation(ev) for ev in events], ", ")
-        push!(report, (1, var_ab, "Novel, $n_mut $mutations_txt from allele $used_template_allele: $mutation_desc")) # Coverage, Minkmer depth, Call
+        push!(report, (1, var_ab, "Novel, $n_mut $mutations_txt from allele $(loci2alleles[idx][used_template_allele]): $mutation_desc")) # Coverage, Minkmer depth, Call
         # save, closest and novel:
         push!(alleles_to_check, (locus, loci2alleles[idx][used_template_allele], allele_seqs[used_template_allele], "Template for novel allele."))
-        push!(alleles_to_check, (locus, "Novel", sequence, "$n_mut $mutations_txt from allele $used_template_allele: $mutation_desc"))
+        push!(alleles_to_check, (locus, "Novel", sequence, "$n_mut $mutations_txt from allele $(loci2alleles[idx][used_template_allele]): $mutation_desc"))
 
       end
     else
@@ -429,7 +429,7 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
   return allele_calls, novel_alleles, report, alleles_to_check, voting_result
 end
 
-function write_calls{k}(::Type{DNAKmer{k}}, allele_calls, novel_alleles, report, alleles_to_check, loci, voting_result, sample, filename, profile, output_special_cases)
+function write_calls{k}(::Type{DNAKmer{k}}, loci2alleles, allele_calls, novel_alleles, report, alleles_to_check, loci, voting_result, sample, filename, profile, output_special_cases)
   # write the main call:
   st, clonal_complex = _find_profile(allele_calls, profile)
   open(filename, "w") do f
@@ -462,7 +462,7 @@ function write_calls{k}(::Type{DNAKmer{k}}, allele_calls, novel_alleles, report,
           n_mut, template_idx, seq, events, abundance = novel_allele
           write(fasta, ">$(loci[idx])\n$seq\n")
           mutation_desc = join([describe_mutation(ev) for ev in events], ", ")
-          write(text, "$(loci[idx])\t$abundance\t$n_mut\t$mutation_desc\n")
+          write(text, "$(loci[idx])\t$abundance\t$n_mut\tFrom allele $(loci2alleles[idx][template_idx]), $mutation_desc.\n")
         end
       end
     end
