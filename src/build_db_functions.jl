@@ -368,7 +368,7 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
         # TODO: find the correct covered; now just pick the best voted; this should not happen anyway, if it is, check why.
         allele = sorted_voted_alleles[1][1]
         push!(allele_calls, "$(loci2alleles[idx][allele])")
-        depth = sorted_allele_coverage[3][1]
+        depth = sorted_allele_coverage[1][3][1]
         push!(report, (1, var_ab, "$(loci2alleles[idx][allele])")) # Coverage, Minkmer depth, Call
 
       else
@@ -388,7 +388,7 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
       # did not find anything; output 0/N, not sure which;
       push!(allele_calls, "0/N?")
       allele = sorted_allele_coverage[1][1]
-      depth = sorted_allele_coverage[3][1]
+      depth = sorted_allele_coverage[1][3][1]
       push!(report, (round(coverage,3), depth, "Either novel or not present; Allele $allele has $uncovered_kmers missing kmers, and no novel was found.")) # Coverage, Minkmer depth, Call
       push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Either novel or not present; Allele $allele has $uncovered_kmers missing kmers, and no novel was found."))
     end
