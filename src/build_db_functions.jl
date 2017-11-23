@@ -302,6 +302,7 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
     end
     sorted_voted_alleles = sort(collect(votes[idx]), by=x->-x[2])
     allele_seqs = read_alleles(fasta_files[idx])
+    # TODO: instead of 20 from the sort, something a bit smarter? All within some margin from the best?
     allele_coverage = [(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)) for (al, votes) in sorted_voted_alleles[1:min(20,end)]]
     # sequence_coverage returns smallest depth of coverage, # kmers covered, # kmers uncovered
     # each element in allele_coverage is then a tuple -> (allele, votes, (depth, # covered, # uncovered))
@@ -389,8 +390,8 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
       push!(allele_calls, "0/N?")
       allele = sorted_allele_coverage[1][1]
       depth = sorted_allele_coverage[1][3][1]
-      push!(report, (round(coverage,3), depth, "Either novel or not present; Allele $allele has $uncovered_kmers missing kmers, and no novel was found.")) # Coverage, Minkmer depth, Call
-      push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Either novel or not present; Allele $allele has $uncovered_kmers missing kmers, and no novel was found."))
+      push!(report, (round(coverage,4), depth, "Uncovered, novel or not present; Most covered allele $allele has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found.")) # Coverage, Minkmer depth, Call
+      push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Uncovered, novel or not present; Allele $allele has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found."))
     end
   end # end of per locus loop to call;
 
