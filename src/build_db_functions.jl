@@ -343,9 +343,10 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
       push!(allele_calls, "0") # not present
       allele = sorted_allele_coverage[1][1]
       depth = sorted_allele_coverage[1][3][1]
+      allele_label = loci2alleles[idx][allele]
       # save allele
       push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Best voted allele, but declared not present, with $uncovered_kmers uncovered kmers and coverage $coverage."))
-      push!(report, (round(coverage,4), depth, "Not present; allele $allele is the best voted but below threshold with $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers.")) # Coverage, Minkmer depth, Call
+      push!(report, (round(coverage,4), depth, "Not present; allele $allele_label is the best voted but below threshold with $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers.")) # Coverage, Minkmer depth, Call
       continue
     end
     # otherwise, try to find a novel allele; get the most covered allele as template:
@@ -377,21 +378,23 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
         novel_alleles[idx] = try_novel_allele
         push!(allele_calls, "N")
         # report:
+        template_allele_label = loci2alleles[idx][used_template_allele]
         mutations_txt = n_mut > 1 ? "mutations" : "mutation"
         mutation_desc = join([describe_mutation(ev) for ev in events], ", ")
-        push!(report, (1, var_ab, "Novel, $n_mut $mutations_txt from allele $(loci2alleles[idx][used_template_allele]): $mutation_desc")) # Coverage, Minkmer depth, Call
+        push!(report, (1, var_ab, "Novel, $n_mut $mutations_txt from allele $template_allele_label: $mutation_desc")) # Coverage, Minkmer depth, Call
         # save, closest and novel:
         push!(alleles_to_check, (locus, loci2alleles[idx][used_template_allele], allele_seqs[used_template_allele], "Template for novel allele."))
-        push!(alleles_to_check, (locus, "Novel", sequence, "$n_mut $mutations_txt from allele $(loci2alleles[idx][used_template_allele]): $mutation_desc"))
+        push!(alleles_to_check, (locus, "Novel", sequence, "$n_mut $mutations_txt from allele $template_allele_label: $mutation_desc"))
 
       end
     else
-      # did not find anything; output 0/N, not sure which;
-      push!(allele_calls, "0/N?")
+      # did not find anything; output allele/N, not sure which;
+      allele_label = loci2alleles[idx][allele]
+      push!(allele_calls, "$allele_label/N?")
       allele = sorted_allele_coverage[1][1]
       depth = sorted_allele_coverage[1][3][1]
-      push!(report, (round(coverage,4), depth, "Uncovered, novel or not present; Most covered allele $allele has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found.")) # Coverage, Minkmer depth, Call
-      push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Uncovered, novel or not present; Allele $allele has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found."))
+      push!(report, (round(coverage,4), depth, "Partially covered alelle, novel or not present; Most covered allele $allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found.")) # Coverage, Minkmer depth, Call
+      push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Uncovered, novel or not present; Allele $allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found."))
     end
   end # end of per locus loop to call;
 
