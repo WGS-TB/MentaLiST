@@ -232,7 +232,11 @@ end
 
 function build_db(args)
   include("build_db_functions.jl")
+  # check if files exist:
   check_files(args["fasta_files"])
+  # converto to absolute path:
+  args["fasta_files"] = [abspath(f) for f in args["fasta_files"]]
+  # get arguments and call the kmer db builder for each locus:
   k::Int8 = args["k"]
   db_file = args["db"]
   profile = args["profile"]
