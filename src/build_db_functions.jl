@@ -389,10 +389,10 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
       end
     else
       # did not find anything; output allele/N, not sure which;
-      allele_label = loci2alleles[idx][allele]
-      push!(allele_calls, "$allele_label/N?")
       allele = sorted_allele_coverage[1][1]
       depth = sorted_allele_coverage[1][3][1]
+      allele_label = loci2alleles[idx][allele]
+      push!(allele_calls, "$allele_label/N?")
       push!(report, (round(coverage,4), depth, "Partially covered alelle, novel or not present; Most covered allele $allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found.")) # Coverage, Minkmer depth, Call
       push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Uncovered, novel or not present; Allele $allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found."))
     end
