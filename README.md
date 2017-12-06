@@ -66,4 +66,4 @@ julia> Pkg.add("Suppressor")
 
 A notebook with basic commands to install MLST schema and running the allele calling algorithm can be found [here](docs/Basic%20Usage.ipynb).
 
-You can also read more detailed instruction on how to deal with [novel alleles](docs/Novel%20allele%20detection%20with%20MentaLiST%200.2.ipynb#Novel-allele-detection-with-MentaLiST).
+You can also read more detailed instruction on how to deal with [novel alleles](docs/Novel%20allele%20detection%20with%20MentaLiST.ipynb).
