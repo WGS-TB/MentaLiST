@@ -1,13 +1,10 @@
-using Suppressor
-@suppress_err begin
-using Bio.Seq
-using DataStructures
+using Bio.Seq: BioSequence, DNASequence, DNAAlphabet, DNAKmer, canonical, FASTASeqRecord, FASTAReader, each, neighbors
+using DataStructures: DefaultDict
 import GZip
-import JLD
+import JLD: load, save
 import FileIO: File, @format_str
 import Blosc
-using OpenGene
-end
+using OpenGene: fastq_open, fastq_read
 include("db_graph.jl")
 
 function check_files(files)
@@ -95,7 +92,6 @@ function combine_loci_classification(k, results, loci)
       append!(alleles_list, allele_list)
       n_kmers_in_class += 1
     end
-    # @show n_kmers_in_class
     push!(loci_list, n_kmers_in_class)
     push!(loci_list, l2int[locus])
     push!(allele_ids_per_locus, n_alleles)
@@ -110,41 +106,10 @@ function kmer_class_for_each_locus(k::Int8, files::Vector{String}, compress::Boo
   for file in files
     locus::String = splitext(basename(file))[1]
     push!(loci, locus)
-    kmer_class, allele_ids, kmer_weights = kmer_class_for_locus(DNAKmer{k}, file, compress)
+    kmer_class, allele_ids, kmer_weights = build_db_graph(DNAKmer{k}, file)
     push!(results, (locus,kmer_class, allele_ids, kmer_weights))
   end
   return results, loci
-end
-
-function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String, compress::Bool)
-  allowed_kmers = Dict()
-  if compress
-    # Find db graph contigs, and get 1st kmer of each:
-    allowed_kmers = db_graph_contig_kmers(DNAKmer{k}, [fastafile])
-  end
-  record = FASTASeqRecord{BioSequence{DNAAlphabet{2}}}()
-  kmer_class = DefaultDict{DNAKmer{k}, Vector{Int16}}(() -> Int16[])
-  allele_ids = Int16[]
-  allele_idx::Int16 = 1
-  open(FASTAReader{BioSequence{DNAAlphabet{2}}}, fastafile) do reader
-      while !eof(reader)
-          read!(reader, record)
-          for (pos, kmer) in each(DNAKmer{k}, record.seq)
-            can_kmer = canonical(kmer)
-            if !compress || (haskey(allowed_kmers,can_kmer))
-              push!(kmer_class[can_kmer], allele_idx)
-            end
-          end
-          # update idx; the counter idx is incremental (1,2, ...) because we need the array sorted.
-          # But this is not always sin the allele ordering, so we have to save the original id to restore it later;
-          # find the separator; will assume that if I see a "_", that's it, otherwise try "-";
-          separator = in('_', record.name) ? "_" : "-"
-          allele_id = parse(Int16,split(record.name, separator)[end])
-          push!(allele_ids, allele_id)
-          allele_idx += 1
-      end
-  end
-  return kmer_class, allele_ids, allowed_kmers
 end
 
 function save_db(k, kmer_db, loci, filename, profile, args)

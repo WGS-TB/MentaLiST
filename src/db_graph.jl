@@ -1,6 +1,3 @@
-using Bio.Seq
-using Bio
-
 function twin{k}(::Type{DNAKmer{k}}, km)
     DNAKmer{k}(Bio.Seq.reverse_complement(DNASequence("$km")))
 end
@@ -43,7 +40,7 @@ function get_contig_forward{k}(::Type{DNAKmer{k}}, kmers, km)
     c_fw = DNAKmer{k}[km]
     while true
         # check if forward exists, and only 1:
-        fw_neighbors = [kmer for kmer in neighbors(c_fw[end]) if kmer in kmers]
+        fw_neighbors = [kmer for kmer in neighbors(c_fw[end]) if canonical(kmer) in kmers]
         if length(fw_neighbors) != 1
           break
         end
@@ -51,7 +48,7 @@ function get_contig_forward{k}(::Type{DNAKmer{k}}, kmers, km)
         if candidate == km || candidate == twin(DNAKmer{k}, km) || candidate == twin(DNAKmer{k}, c_fw[end])
           break
         end
-        bw_neighbors = [kmer for kmer in neighbors(twin(DNAKmer{k}, candidate)) if kmer in kmers]
+        bw_neighbors = [kmer for kmer in neighbors(twin(DNAKmer{k}, candidate)) if canonical(kmer) in kmers]
         if length(bw_neighbors) != 1
           break
         end
@@ -77,14 +74,60 @@ function all_contigs{k}(::Type{DNAKmer{k}}, kmers)
   return contigs
 end
 
-function db_graph_contig_kmers{k}(::Type{DNAKmer{k}}, fastafiles)
-  kmers = build(DNAKmer{k}, fastafiles)
-  contig_kmers = Dict{DNAKmer{k},Int16}()
-  for contig in all_contigs(DNAKmer{k}, kmers)
-      contig_kmers[canonical(contig[1])] = length(contig)
+### classifies each kmer with his colors (present alleles)
+function find_all_kmer_colors{k}(::Type{DNAKmer{k}}, fastafile)
+  record = FASTASeqRecord{BioSequence{DNAAlphabet{2}}}()
+  kmer_class = DefaultDict{DNAKmer{k}, Vector{Int16}}(() -> Int16[])
+  allele_ids = Int16[]
+  allele_idx::Int16 = 1
+  open(FASTAReader{BioSequence{DNAAlphabet{2}}}, fastafile) do reader
+    while !eof(reader)
+      read!(reader, record)
+      seen = Set{DNAKmer{k}}()
+      for (pos, kmer) in each(DNAKmer{k}, record.seq)
+        can_kmer = canonical(kmer)
+        if !in(can_kmer, seen)
+          push!(kmer_class[canonical(kmer)], allele_idx)
+        end
+        push!(seen, can_kmer)
+      end
+      # find the separator; will assume that if I see a "_", that's it, otherwise try "-";
+      separator = in('_', record.name) ? "_" : "-"
+      # update idx; the counter idx is incremental (1,2, ...) because we need the array sorted.
+      # But this is not always sin the allele ordering, so we have to save the original id to restore it later;
+      allele_id = parse(Int16,split(record.name, separator)[end])
+      push!(allele_ids, allele_id)
+      allele_idx += 1
+    end
   end
-  return contig_kmers
+  return kmer_class, allele_ids
 end
+
+
+function build_db_graph{k}(::Type{DNAKmer{k}}, fastafile)
+  # get kmers and colors (alleles)
+  kmer_class, allele_ids = find_all_kmer_colors(DNAKmer{k}, fastafile)
+
+  contig_list = all_contigs(DNAKmer{k}, keys(kmer_class))
+  # select kmers:
+  kmer_weights = Dict{DNAKmer{k}, Int}()
+  for contig in contig_list
+      kmer_weights[canonical(contig[1])] = length(contig)
+  end
+  # filter kmer class to only kmers that are selected per contig;
+  filtered_kmer_class = Dict{DNAKmer{k}, Vector{Int16}}()
+  for (kmer, classification) in kmer_class
+    can_kmer = canonical(kmer)
+    # if haskey(kmer_node_id, can_kmer)
+    if haskey(kmer_weights, can_kmer)
+      filtered_kmer_class[can_kmer] = classification
+    end
+  end
+  return filtered_kmer_class, allele_ids, kmer_weights
+end
+
+
+
 
 
 # Calling:
