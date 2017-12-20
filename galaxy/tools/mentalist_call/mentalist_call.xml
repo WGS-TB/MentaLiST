@@ -7,45 +7,31 @@
     call
     -o '$output_file'
     --db '$kmer_db.fields.path'
-    #if $discard_threshold
-        -t '$discard_threshold'
-    #end if
-    #if str( $fastq_input_selector ) == "single":
-        -s '$fastq_input1.name'
-        '$fastq_input1'
-    #else:
-        #if str( $fastq_input_selector ) == "paired":
-            -s '$fastq_input1.name'
-            '$fastq_input1' '$fastq_input2'
-	#end if	
+    #if $input_type.sPaired == "paired":
+       -s $input_type.pInput1.name $input_type.pInput1 $input_type.pInput2
+    #elif $input_type.sPaired == "collections":
+       -s $input_type.fastq_collection.name $input_type.fastq_collection.forward $input_type.fastq_collection.reverse
     #end if
   ]]></command>
   <inputs>
+    <conditional name="input_type">
+      <param name="sPaired" type="select" label="Single Pair or Collection">
+        <option value="collections">Paired-end Collections</option>
+        <option value="paired">Paired-end</option>
+      </param>
+      <when value="paired">
+        <param name="pInput1" type="data" format="fastq,fastqsanger,fastqillumina,fastqsolexa" label="Forward FASTQ file" help="Must have ASCII encoded quality scores"/>
+        <param name="pInput2" type="data" format="fastq,fastqsanger,fastqillumina,fastqsolexa" label="Reverse FASTQ file" help="File format must match the Forward FASTQ file"/>
+      </when>
+      <when value="collections">
+        <param name="fastq_collection" type="data_collection" label="Paired-end Fastq collection" help="" optional="false" format="txt" collection_type="paired" />
+      </when>
+    </conditional>
     <param name="kmer_db" type="select">
       <options from_data_table="mentalist_databases">
 	<validator type="no_options" message="No MentaLiST databases are available" />
       </options>
     </param>
-    <param name="discard_threshold" type="float"
-	   label="Discard Threshold" help="A read of length L is discarded if it has at less than (L - k) * t hits to the same locus in the kmer database, where k is the kmer length. 0 &lt;= t &lt;= 1"
-	   value="0.3" min="0" max="1" />
-    <param name="skip_length" type="integer"
-	   label="Skip Length" help="Skip length between consecutive k-mers."
-	   value="1" min="1" max="32" />
-    <conditional name="fastq_input">
-      <param name="fastq_input_selector" type="select" label="Single or Paired-end reads" help="Select between paired and single end data">
-	<option value="paired">Paired</option>
-	<option value="single">Single</option>
-	<option value="paired_collection">Paired Collection</option>
-      </param>
-      <when value="paired">
-	<param name="fastq_input1" type="data" format="fastq" label="Select first set of reads" help="Specify dataset with forward reads"/>
-	<param name="fastq_input2" type="data" format="fastq" label="Select second set of reads" help="Specify dataset with reverse reads"/>
-      </when>
-      <when value="single">
-	<param name="fastq_input1" type="data" format="fastq" label="Select fastq dataset" help="Specify dataset with single reads"/>
-      </when>
-    </conditional>
   </inputs>
   <outputs>
     <data name="output_file" format="tabular"/>
