@@ -268,7 +268,8 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
     sorted_voted_alleles = sort(collect(votes[idx]), by=x->-x[2])
     allele_seqs = read_alleles(fasta_files[idx])
     # TODO: instead of 20 from the sort, something a bit smarter? All within some margin from the best?
-    allele_coverage = [(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)) for (al, votes) in sorted_voted_alleles[1:min(20,end)]]
+    # allele_coverage = [(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)) for (al, votes) in sorted_voted_alleles[1:min(20,end)]]
+    allele_coverage = [(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)) for (al, votes) in sorted_voted_alleles[1:min(10,end)]]
     # sequence_coverage returns smallest depth of coverage, # kmers covered, # kmers uncovered
     # each element in allele_coverage is then a tuple -> (allele, votes, (depth, # covered, # uncovered))
     # filter to find fully covered alleles :
@@ -314,53 +315,93 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
       push!(report, (round(coverage,4), depth, "Not present; allele $allele_label is the best voted but below threshold with $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers.")) # Coverage, Minkmer depth, Call
       continue
     end
+
     # otherwise, try to find a novel allele; get the most covered allele as template:
-    template_alleles = [sorted_allele_coverage[1][1]]
-    # if there is a tie with other alleles, also include them, up to 10.
-    for i in 2:min(10, length(sorted_allele_coverage))
-      if sorted_allele_coverage[i][3][3] > uncovered_kmers
-        break
-      end
-      push!(template_alleles, sorted_allele_coverage[i][1])
-    end
-    # try the template(s)
-    try_novel_allele = find_allele_variants(DNAKmer{k}, allele_seqs, template_alleles, kmer_count, kmer_thr, max_mutations)
-    if try_novel_allele != nothing
-      # found something;
-      n_mut, used_template_allele, sequence, events, var_ab = try_novel_allele
-      # sanity check, test if we did not find a novel that is already existing!
-      if any([sequence == allele_seqs[template_allele] for template_allele in template_alleles])
-        # not a new allele; TODO: check why
-        println("******************************** Found the same allele, no novel! -> $(loci[idx])")
-        # TODO: find the correct covered; now just pick the best voted; this should not happen anyway, if it is, check why.
-        allele = sorted_voted_alleles[1][1]
-        push!(allele_calls, "$(loci2alleles[idx][allele])")
-        depth = sorted_allele_coverage[1][3][1]
-        push!(report, (1, var_ab, "$(loci2alleles[idx][allele])")) # Coverage, Minkmer depth, Call
+    # println("Locus:$locus Coverage for allele $(sorted_allele_coverage[1][1]), mincov: $(sorted_allele_coverage[1][3][1]):")
+    # println("$(["($x,$y)" for (x,y) in sorted_allele_coverage[1][3][4]])")
+    # println()
 
+
+    # New: fill gaps:
+    # TODO: is there a point to try more than one allele? they are so similar that is very hard to think that it would change;
+    # for current_allele in sorted_allele_coverage[1:5]
+      # al, al_votes, (depth, uncov, cov, gap_list) = current_allele
+      used_template_allele, al_votes, (depth, uncov, cov, gap_list) = sorted_allele_coverage[1]
+      template_seq = allele_seqs[used_template_allele]
+      println("Locus:$locus, trying allele $used_template_allele, L:$(length(template_seq)) Gap_list: $gap_list")
+      novel_allele_seq, uncorrected_gaps = correct_template(DNAKmer{k}, template_seq, gap_list, kmer_count, kmer_thr, max_mutations)
+      # if full
+      # TODO: this info in the report
+      if length(uncorrected_gaps) == 0
+        println("Full novel allele found!")
+        println("C:$novel_allele_seq")
       else
-       # found really something new, save the novel allele;
-        novel_alleles[idx] = try_novel_allele
-        push!(allele_calls, "N")
-        # report:
-        template_allele_label = loci2alleles[idx][used_template_allele]
-        mutations_txt = n_mut > 1 ? "mutations" : "mutation"
-        mutation_desc = join([describe_mutation(ev) for ev in events], ", ")
-        push!(report, (1, var_ab, "Novel, $n_mut $mutations_txt from allele $template_allele_label: $mutation_desc")) # Coverage, Minkmer depth, Call
-        # save, closest and novel:
-        push!(alleles_to_check, (locus, loci2alleles[idx][used_template_allele], allele_seqs[used_template_allele], "Template for novel allele."))
-        push!(alleles_to_check, (locus, "Novel", sequence, "$n_mut $mutations_txt from allele $template_allele_label: $mutation_desc"))
-
+        println("Out of the $(length(gap_list)) gaps, the gaps $uncorrected_gaps were not corrected. Using the original allele sequence for those gaps.")
       end
-    else
-      # did not find anything; output allele/N, not sure which;
-      allele = sorted_allele_coverage[1][1]
-      depth = sorted_allele_coverage[1][3][1]
-      allele_label = loci2alleles[idx][allele]
-      push!(allele_calls, "$allele_label/N?")
-      push!(report, (round(coverage,4), depth, "Partially covered alelle, novel or not present; Most covered allele $allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found.")) # Coverage, Minkmer depth, Call
-      push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Uncovered, novel or not present; Allele $allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found."))
-    end
+    # end
+    # TODO: for now, just save as a novel allele. Later, check if it is not a Partially uncovered allele.
+    # TODO: fill correctly the n_mut, events, and var_ab
+    n_mut = -1
+    events = []
+    var_ab = -1
+    novel_alleles[idx] = n_mut, used_template_allele, novel_allele_seq, events, var_ab
+    push!(allele_calls, "N")
+    # report:
+    template_allele_label = loci2alleles[idx][used_template_allele]
+    mutations_txt = n_mut > 1 ? "mutations" : "mutation"
+    mutation_desc = join([describe_mutation(ev) for ev in events], ", ")
+    push!(report, (1, var_ab, "Novel, $n_mut $mutations_txt from allele $template_allele_label: $mutation_desc")) # Coverage, Minkmer depth, Call
+    # save, closest and novel:
+    push!(alleles_to_check, (locus, loci2alleles[idx][used_template_allele], allele_seqs[used_template_allele], "Template for novel allele."))
+    push!(alleles_to_check, (locus, "Novel", novel_allele_seq, "$n_mut $mutations_txt from allele $template_allele_label: $mutation_desc"))
+
+    # # OLD:::
+    # template_alleles = [sorted_allele_coverage[1][1]]
+    # # if there is a tie with other alleles, also include them, up to 10.
+    # for i in 2:min(10, length(sorted_allele_coverage))
+    #   if sorted_allele_coverage[i][3][3] > uncovered_kmers
+    #     break
+    #   end
+    #   push!(template_alleles, sorted_allele_coverage[i][1])
+    # end
+    # # try the template(s)
+    # try_novel_allele = find_allele_variants(DNAKmer{k}, allele_seqs, template_alleles, kmer_count, kmer_thr, max_mutations)
+    # if try_novel_allele != nothing
+    #   # found something;
+    #   n_mut, used_template_allele, sequence, events, var_ab = try_novel_allele
+    #   # sanity check, test if we did not find a novel that is already existing!
+    #   if any([sequence == allele_seqs[template_allele] for template_allele in template_alleles])
+    #     # not a new allele; TODO: check why
+    #     println("******************************** Found the same allele, no novel! -> $(loci[idx])")
+    #     # TODO: find the correct covered; now just pick the best voted; this should not happen anyway, if it is, check why.
+    #     allele = sorted_voted_alleles[1][1]
+    #     push!(allele_calls, "$(loci2alleles[idx][allele])")
+    #     depth = sorted_allele_coverage[1][3][1]
+    #     push!(report, (1, var_ab, "$(loci2alleles[idx][allele])")) # Coverage, Minkmer depth, Call
+    #   else
+    #    # found really something new, save the novel allele;
+    #     novel_alleles[idx] = try_novel_allele
+    #     push!(allele_calls, "N")
+    #     # report:
+    #     template_allele_label = loci2alleles[idx][used_template_allele]
+    #     mutations_txt = n_mut > 1 ? "mutations" : "mutation"
+    #     mutation_desc = join([describe_mutation(ev) for ev in events], ", ")
+    #     push!(report, (1, var_ab, "Novel, $n_mut $mutations_txt from allele $template_allele_label: $mutation_desc")) # Coverage, Minkmer depth, Call
+    #     # save, closest and novel:
+    #     push!(alleles_to_check, (locus, loci2alleles[idx][used_template_allele], allele_seqs[used_template_allele], "Template for novel allele."))
+    #     push!(alleles_to_check, (locus, "Novel", sequence, "$n_mut $mutations_txt from allele $template_allele_label: $mutation_desc"))
+    #
+    #   end
+    # else
+    #   # did not find anything; output allele/N, not sure which;
+    #   allele = sorted_allele_coverage[1][1]
+    #   depth = sorted_allele_coverage[1][3][1]
+    #   allele_label = loci2alleles[idx][allele]
+    #   push!(allele_calls, "$allele_label/N?")
+    #   push!(report, (round(coverage,4), depth, "Partially covered alelle, novel or not present; Most covered allele $allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found.")) # Coverage, Minkmer depth, Call
+    #   push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Uncovered, novel or not present; Allele $allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found."))
+    # end
+
   end # end of per locus loop to call;
 
   # Also do voting output?
