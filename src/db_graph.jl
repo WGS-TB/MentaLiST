@@ -128,6 +128,8 @@ end
 
 # Calling:
 function sequence_coverage{k}(::Type{DNAKmer{k}}, sequence, kmer_count, kmer_thr=6)
+  # TODO: not using the gap list anymore, just for debug. Eventually delete!
+
   # find the minimum coverage depth of all kmers of the given variant, and
   # how many kmers are covered/uncovered
   gap_list = Tuple{Int,Int}[]
@@ -317,6 +319,8 @@ function correct_template{k}(::Type{DNAKmer{k}}, template_seq, gap_list, kmer_co
   current_skip = 1
   uncorrected_gaps = []
   corrected_seq = template_seq
+  total_mut = 0
+  mutations_list = []
   while current_skip < length(corrected_seq)
     gap = find_next_gap(corrected_seq, current_skip)
     println("Found gap: $gap")
@@ -329,16 +333,22 @@ function correct_template{k}(::Type{DNAKmer{k}}, template_seq, gap_list, kmer_co
     gap_seq = corrected_seq[adj_start:adj_end]
     gap_cover = cover_sequence_gap(DNAKmer{k}, gap_seq, kmer_count, kmer_thr, max_mutations)
     if gap_cover == nothing
-      push!(uncorrected_gaps, (adj_start, adj_end))
+      push!(uncorrected_gaps, (st_pos, end_pos))
+      current_skip = end_pos + 1
     else
       # TODO: report n_mut, mut_list, depth, etc.
       n_mut, gap_cover_seq, mut_list, depth = gap_cover
       println("Mutations found: $mut_list")
+      total_mut += n_mut
+      for mut in mut_list
+        # TODO: correct idx
+        push!(mutations_list, (mut[1], mut[2] + adj_start - 1, mut[3]))
+      end
       corrected_seq = corrected_seq[1:adj_start-1] * gap_cover_seq * corrected_seq[adj_end+1:end]
+      current_skip = adj_start + length(gap_cover_seq) - k
     end
-    current_skip = adj_end - k + 1
   end
-  return corrected_seq, uncorrected_gaps
+  return corrected_seq, total_mut, mutations_list, uncorrected_gaps
 end
 
 function describe_mutation(mut)
