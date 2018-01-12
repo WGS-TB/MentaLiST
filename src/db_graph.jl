@@ -287,7 +287,9 @@ function cover_sequence_gap{k}(::Type{DNAKmer{k}}, sequence, kmer_count, kmer_th
   end
 
 end
-
+# struct CorrectedTemplate
+#
+# end
 function correct_template{k}(::Type{DNAKmer{k}}, template_seq, gap_list, kmer_count, kmer_thr, max_mutations)
   function find_next_gap(sequence, skip=1)
     in_gap = false
@@ -323,7 +325,6 @@ function correct_template{k}(::Type{DNAKmer{k}}, template_seq, gap_list, kmer_co
   mutations_list = []
   while current_skip < length(corrected_seq)
     gap = find_next_gap(corrected_seq, current_skip)
-    println("Found gap: $gap")
     if gap == nothing
       break
     end
@@ -338,7 +339,7 @@ function correct_template{k}(::Type{DNAKmer{k}}, template_seq, gap_list, kmer_co
     else
       # TODO: report n_mut, mut_list, depth, etc.
       n_mut, gap_cover_seq, mut_list, depth = gap_cover
-      println("Mutations found: $mut_list")
+      # println("Mutations found: $mut_list")
       total_mut += n_mut
       for mut in mut_list
         # TODO: correct idx
