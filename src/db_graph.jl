@@ -65,9 +65,8 @@ function all_contigs{k}(::Type{DNAKmer{k}}, kmers)
       continue
     end
     contig = get_contig(DNAKmer{k}, kmers, kmer)
-    for c_kmer in contig
-      push!(done, c_kmer)
-      push!(done, twin(DNAKmer{k}, c_kmer))
+      for c_kmer in contig
+      push!(done, canonical(c_kmer))
     end
     push!(contigs, contig)
   end
@@ -87,9 +86,9 @@ function find_all_kmer_colors{k}(::Type{DNAKmer{k}}, fastafile)
       for (pos, kmer) in each(DNAKmer{k}, record.seq)
         can_kmer = canonical(kmer)
         if !in(can_kmer, seen)
-          push!(kmer_class[canonical(kmer)], allele_idx)
+          push!(kmer_class[can_kmer], allele_idx)
+          push!(seen, can_kmer)
         end
-        push!(seen, can_kmer)
       end
       # find the separator; will assume that if I see a "_", that's it, otherwise try "-";
       separator = in('_', record.name) ? "_" : "-"
