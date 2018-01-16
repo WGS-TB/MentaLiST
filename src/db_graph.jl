@@ -110,17 +110,13 @@ function build_db_graph{k}(::Type{DNAKmer{k}}, fastafile)
   contig_list = all_contigs(DNAKmer{k}, keys(kmer_class))
   # select kmers:
   kmer_weights = Dict{DNAKmer{k}, Int}()
-  for contig in contig_list
-      kmer_weights[canonical(contig[1])] = length(contig)
-  end
   # filter kmer class to only kmers that are selected per contig;
   filtered_kmer_class = Dict{DNAKmer{k}, Vector{Int16}}()
-  for (kmer, classification) in kmer_class
-    can_kmer = canonical(kmer)
-    # if haskey(kmer_node_id, can_kmer)
-    if haskey(kmer_weights, can_kmer)
-      filtered_kmer_class[can_kmer] = classification
-    end
+  for contig in contig_list
+    # select 1st kmer of contig:
+    can_kmer = canonical(contig[1])
+    kmer_weights[can_kmer] = length(contig)
+    filtered_kmer_class[can_kmer] = kmer_class[can_kmer]
   end
   return filtered_kmer_class, allele_ids, kmer_weights
 end
