@@ -1,10 +1,16 @@
+# Packages needed for parallel processing need to be loaded "twice":s
 using Bio.Seq: BioSequence, DNASequence, DNAAlphabet, DNAKmer, canonical, FASTASeqRecord, FASTAReader, each, neighbors
+@everywhere using Bio.Seq: BioSequence, DNASequence, DNAAlphabet, DNAKmer, canonical, FASTASeqRecord, FASTAReader, each, neighbors
 using DataStructures: DefaultDict
+@everywhere using DataStructures: DefaultDict
+using OpenGene: fastq_open, fastq_read
+@everywhere using OpenGene: fastq_open, fastq_read
+
 import GZip
 import JLD: load, save
 import FileIO: File, @format_str
 import Blosc
-using OpenGene: fastq_open, fastq_read
+
 include("db_graph.jl")
 
 function check_files(files)
@@ -69,11 +75,13 @@ function combine_loci_classification(k, results, loci)
   # weight::Int8 = 0
   weight::Int16 = 0
 
-  for (locus,kmer_class, allele_ids, kmer_weights) in results
+  for (locus,(kmer_class, allele_ids, kmer_weights)) in zip(loci,results)
     n_alleles = length(allele_ids)
     half = n_alleles/2
     n_kmers_in_class = 0
     for (kmer, allele_list) in kmer_class
+      # at this point, kmer is store as a UInt64; convert back to Kmer.
+      kmer = convert(DNAKmer{k}, kmer)
       l_as = length(allele_list)
       if l_as == n_alleles
         continue
@@ -102,13 +110,8 @@ end
 
 function kmer_class_for_each_locus(k::Int8, files::Vector{String}, compress::Bool)
   results = []
-  loci = String[]
-  for file in files
-    locus::String = splitext(basename(file))[1]
-    push!(loci, locus)
-    kmer_class, allele_ids, kmer_weights = build_db_graph(DNAKmer{k}, file)
-    push!(results, (locus,kmer_class, allele_ids, kmer_weights))
-  end
+  loci = [splitext(basename(file))[1] for file in files]
+  results = pmap(file->build_db_graph(DNAKmer{k}, file), files)
   return results, loci
 end
 

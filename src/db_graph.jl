@@ -1,4 +1,4 @@
-function twin{k}(::Type{DNAKmer{k}}, km)
+@everywhere function twin{k}(::Type{DNAKmer{k}}, km)
     DNAKmer{k}(Bio.Seq.reverse_complement(DNASequence("$km")))
 end
 
@@ -25,7 +25,7 @@ function contig_to_string(c)
   return "$(c[1])" * join(["$(x[end])" for x in c[2:end]])
 end
 
-function get_contig{k}(::Type{DNAKmer{k}}, kmers, km)
+@everywhere function get_contig{k}(::Type{DNAKmer{k}}, kmers, km)
   contig_fw = get_contig_forward(DNAKmer{k}, kmers, km)
   contig_bw = get_contig_forward(DNAKmer{k}, kmers, twin(DNAKmer{k}, km))
 
@@ -36,7 +36,7 @@ function get_contig{k}(::Type{DNAKmer{k}}, kmers, km)
   end
 end
 
-function get_contig_forward{k}(::Type{DNAKmer{k}}, kmers, km)
+@everywhere function get_contig_forward{k}(::Type{DNAKmer{k}}, kmers, km)
     c_fw = DNAKmer{k}[km]
     while true
         # check if forward exists, and only 1:
@@ -57,7 +57,7 @@ function get_contig_forward{k}(::Type{DNAKmer{k}}, kmers, km)
     return c_fw
 end
 
-function all_contigs{k}(::Type{DNAKmer{k}}, kmers)
+@everywhere function all_contigs{k}(::Type{DNAKmer{k}}, kmers)
   done = Set{DNAKmer{k}}()
   contigs = []
   for kmer in kmers
@@ -75,7 +75,7 @@ function all_contigs{k}(::Type{DNAKmer{k}}, kmers)
 end
 
 ### classifies each kmer with his colors (present alleles)
-function find_all_kmer_colors{k}(::Type{DNAKmer{k}}, fastafile)
+@everywhere function find_all_kmer_colors{k}(::Type{DNAKmer{k}}, fastafile)
   record = FASTASeqRecord{BioSequence{DNAAlphabet{2}}}()
   kmer_class = DefaultDict{DNAKmer{k}, Vector{Int16}}(() -> Int16[])
   allele_ids = Int16[]
@@ -104,26 +104,21 @@ function find_all_kmer_colors{k}(::Type{DNAKmer{k}}, fastafile)
 end
 
 
-function build_db_graph{k}(::Type{DNAKmer{k}}, fastafile)
+@everywhere function build_db_graph{k}(::Type{DNAKmer{k}}, fastafile)
   # get kmers and colors (alleles)
   kmer_class, allele_ids = find_all_kmer_colors(DNAKmer{k}, fastafile)
 
   contig_list = all_contigs(DNAKmer{k}, keys(kmer_class))
-  # select kmers:
-  kmer_weights = Dict{DNAKmer{k}, Int}()
+  # select 1 kmer per contig, and set weights:
+  kmer_weights = Dict{UInt64, Int}() # Kmer is converted to UInt64, because DNAKmer apparently does not support write(), needed for the parallel pmap() call;
+  filtered_kmer_class = Dict{UInt64, Vector{Int16}}()
   for contig in contig_list
-      kmer_weights[canonical(contig[1])] = length(contig)
+      kmer = canonical(contig[1])
+      kmer_uint = convert(UInt64,kmer)
+      kmer_weights[kmer_uint] = length(contig)
+      filtered_kmer_class[kmer_uint] = kmer_class[kmer]
   end
-  # filter kmer class to only kmers that are selected per contig;
-  filtered_kmer_class = Dict{DNAKmer{k}, Vector{Int16}}()
-  for (kmer, classification) in kmer_class
-    can_kmer = canonical(kmer)
-    # if haskey(kmer_node_id, can_kmer)
-    if haskey(kmer_weights, can_kmer)
-      filtered_kmer_class[can_kmer] = classification
-    end
-  end
-  return filtered_kmer_class, allele_ids, kmer_weights
+  return (filtered_kmer_class, allele_ids, kmer_weights)
 end
 
 # Calling:

@@ -84,6 +84,10 @@ function parse_commandline()
         "-c", "--disable_compression"
           help = "Disables the default compression of the database, that stores only the most informative kmers. Not recommended unless for debugging."
           action = :store_true
+        "--threads"
+          arg_type = Int
+          default = 2
+          help = "Number of threads used in parallel."
     end
     @add_arg_table s["list_pubmlst"] begin
       "-p", "--prefix"
@@ -117,6 +121,10 @@ function parse_commandline()
       "-c", "--disable_compression"
         help = "Disables the default compression of the database, that stores only the most informative kmers. Not recommended unless for debugging."
         action = :store_true
+      "--threads"
+        arg_type = Int
+        default = 2
+        help = "Number of threads used in parallel."
     end
 
     @add_arg_table s["download_cgmlst"] begin
@@ -139,6 +147,10 @@ function parse_commandline()
       "-c", "--disable_compression"
         help = "Disables the default compression of the database, that stores only the most informative kmers. Not recommended unless for debugging."
         action = :store_true
+      "--threads"
+        arg_type = Int
+        default = 2
+        help = "Number of threads used in parallel."
     end
 
     @add_arg_table s["download_enterobase"] begin
@@ -165,6 +177,10 @@ function parse_commandline()
       "-c", "--disable_compression"
         help = "Disables the default compression of the database, that stores only the most informative kmers. Not recommended unless for debugging."
         action = :store_true
+      "--threads"
+        arg_type = Int
+        default = 2
+        help = "Number of threads used in parallel."
     end
 
     return parse_args(s)
@@ -228,6 +244,8 @@ function download_enterobase(args)
 end
 
 function build_db(args)
+  # parallel: number of processors.
+  addprocs(args["threads"])
   include("build_db_functions.jl")
   # check if files exist:
   check_files(args["fasta_files"])
