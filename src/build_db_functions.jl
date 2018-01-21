@@ -56,8 +56,7 @@ function combine_loci_classification(k, results, loci)
   # the kmer_list that corresponds to the the locus l1
   loci_list = Int32[]
 
-  # +1 and -1 corresponding to the weight of the kmer:
-  # weight_list = Int8[]
+  # weight of each kmer:
   weight_list = Int16[]
 
   # n1, a_1, ..., a_n1, n2, b_1, ..., b_n2, ...
@@ -72,7 +71,6 @@ function combine_loci_classification(k, results, loci)
 
   # locus to int.
   l2int = Dict{String,Int16}(locus => idx for (idx, locus) in enumerate(loci))
-  # weight::Int8 = 0
   weight::Int16 = 0
 
   for (locus,(kmer_class, allele_ids, kmer_weights)) in zip(loci,results)
@@ -80,8 +78,6 @@ function combine_loci_classification(k, results, loci)
     half = n_alleles/2
     n_kmers_in_class = 0
     for (kmer, allele_list) in kmer_class
-      # at this point, kmer is store as a UInt64; convert back to Kmer.
-      kmer = convert(DNAKmer{k}, kmer)
       l_as = length(allele_list)
       if l_as == n_alleles
         continue
@@ -94,7 +90,8 @@ function combine_loci_classification(k, results, loci)
       else
         weight = get(kmer_weights, kmer, 1)
       end
-      push!(kmer_list, "$kmer")
+      # kmer as string:
+      push!(kmer_list, "$(convert(DNAKmer{k}, kmer))")
       push!(weight_list, weight)
       push!(alleles_list, length(allele_list))
       append!(alleles_list, allele_list)
