@@ -199,9 +199,10 @@ function call_mlst(args)
   info("Voting for alleles ... ")
   votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
   info("Calling alleles and novel alleles ...")
-  allele_calls, novel_alleles, report, alleles_to_check, voting_result = call_alleles(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], args["kt"], args["mutation_threshold"], args["output_votes"])
+  # allele_calls, novel_alleles, report, alleles_to_check, voting_result = call_alleles(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], args["kt"], args["mutation_threshold"], args["output_votes"])
+  allele_calls, voting_result = call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], args["kt"], args["mutation_threshold"], args["output_votes"])
   info("Writing output ...")
-  write_calls(DNAKmer{k}, loci2alleles, allele_calls, novel_alleles, report, alleles_to_check, loci, voting_result, args["s"], args["o"], profile, args["output_special"])
+  write_calls(loci2alleles, allele_calls, loci, voting_result, args["s"], args["o"], profile, args["output_special"])
 
   info("Done.")
 end

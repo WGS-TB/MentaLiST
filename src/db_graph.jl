@@ -285,7 +285,7 @@ end
 # struct CorrectedTemplate
 #
 # end
-function correct_template{k}(::Type{DNAKmer{k}}, template_seq, gap_list, kmer_count, kmer_thr, max_mutations)
+function correct_template(k, template_seq, gap_list, kmer_count, kmer_thr, max_mutations)
   function find_next_gap(sequence, skip=1)
     in_gap = false
     gap_start = 0
@@ -317,6 +317,7 @@ function correct_template{k}(::Type{DNAKmer{k}}, template_seq, gap_list, kmer_co
   uncorrected_gaps = []
   corrected_seq = template_seq
   total_mut = 0
+  max_depth = 0
   mutations_list = []
   while current_skip < length(corrected_seq)
     gap = find_next_gap(corrected_seq, current_skip)
@@ -332,10 +333,11 @@ function correct_template{k}(::Type{DNAKmer{k}}, template_seq, gap_list, kmer_co
       push!(uncorrected_gaps, (st_pos, end_pos))
       current_skip = end_pos + 1
     else
-      # TODO: report n_mut, mut_list, depth, etc.
       n_mut, gap_cover_seq, mut_list, depth = gap_cover
-      # println("Mutations found: $mut_list")
       total_mut += n_mut
+      if depth > max_depth
+        max_depth = depth
+      end
       for mut in mut_list
         # TODO: correct idx
         push!(mutations_list, (mut[1], mut[2] + adj_start - 1, mut[3]))
@@ -344,7 +346,8 @@ function correct_template{k}(::Type{DNAKmer{k}}, template_seq, gap_list, kmer_co
       current_skip = adj_start + length(gap_cover_seq) - k
     end
   end
-  return corrected_seq, total_mut, mutations_list, uncorrected_gaps
+  # 1st field, template_allele, is filled later:
+  return NovelAllele(-1, corrected_seq, total_mut, mutations_list, max_depth, uncorrected_gaps)
 end
 
 function describe_mutation(mut)
