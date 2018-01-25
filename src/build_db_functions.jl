@@ -10,6 +10,7 @@ import GZip
 import JLD: load, save
 import FileIO: File, @format_str
 import Blosc
+using FastaIO
 
 ## Helper structs:
 type AlleleCoverage
@@ -226,8 +227,9 @@ function open_db(filename)
     locus_idx += 1
   end
   # build the kmer db in the usual format:
-  kmer_classification = DefaultDict{DNAKmer{k}, Vector{Tuple{Int16, Int16, Vector{Int16}}}}(() -> Vector{Tuple{Int16, Int16, Vector{Int16}}}())
-  # tuple is locus idx, weight, and list of alleles;
+  # kmer_classification = DefaultDict{DNAKmer{k}, Vector{Tuple{Int16, Int16, Vector{Int16}}}}(() -> Vector{Tuple{Int16, Int16, Vector{Int16}}}())
+  kmer_classification = Dict{DNAKmer{k}, Vector{Tuple{Int16, Int16, Vector{Int16}}}}()
+# tuple is locus idx, weight, and list of alleles;
   loci_list_idx = 1
   allele_list_idx = 1
   kmer_idx = 1
@@ -248,6 +250,9 @@ function open_db(filename)
       weight = weight_list[weight_idx]
       weight_idx += 1
       # save in db
+      if !haskey(kmer_classification, kmer)
+        kmer_classification[kmer] = Tuple{Int16, Int16, Vector{Int16}}[]
+      end
       push!(kmer_classification[kmer], (locus_idx, weight, current_allele_list))
     end
   end
@@ -270,16 +275,14 @@ function _find_profile(alleles, profile)
   return 0,0
 end
 
-function read_alleles(fastafile)
-  record = FASTASeqRecord{BioSequence{DNAAlphabet{2}}}()
-  alleles = String[]
-  open(FASTAReader{BioSequence{DNAAlphabet{2}}}, fastafile) do reader
-    while !eof(reader)
-      read!(reader, record)
-      # there might be "\n" on the string, remove and return:
-      push!(alleles, join(split("$(record.seq)")))
-      # end
+function read_alleles(fastafile, ids)
+  alleles = Dict{Int, String}()
+  idx = 1
+  for (name, seq) in FastaReader(fastafile)
+    if in(idx, ids)
+      alleles[idx] = seq
     end
+    idx += 1
   end
   return alleles
 end
@@ -320,7 +323,8 @@ function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fast
     end
     # Votes: Dict{Int16,Dict{Int16,Int64}}; locus_idx -> { allele_idx -> votes};
     sorted_voted_alleles = sort(collect(votes_per_allele), by=x->-x[2]) # sort by max votes for this locus;
-    allele_seqs = read_alleles(fasta_file)
+    allele_set = Set([al for (al, votes) in sorted_voted_alleles[1:min(10,end)]])
+    allele_seqs = read_alleles(fasta_file, allele_set)
     # TODO: instead of 10-20 from the sort, something a bit smarter? All within some margin from the best?
     allele_coverage = [AlleleCoverage(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)...) for (al, votes) in sorted_voted_alleles[1:min(10,end)]]
     # filter to find fully covered alleles:
@@ -334,8 +338,8 @@ function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fast
     end
     if length(covered) > 1
       # choose the most voted, but indicate that there are more fully covered that might be possible:
-      allele_label = loci2alleles[idx][covered[1].allele]
-      multiple_alleles = join([loci2alleles[idx][x.allele] for x in covered],", ")
+      allele_label = locus2alleles[covered[1].allele]
+      multiple_alleles = join([locus2alleles[x.allele] for x in covered],", ")
       multiple_votes = join([x.votes for x in covered],", ")
       multiple_depth = join([x.depth for x in covered],", ")
       report_txt = "Multiple possible alleles:$multiple_alleles with depth $multiple_depth and votes $multiple_votes. Most voted ($allele_label) is chosen on call file."
@@ -424,10 +428,9 @@ function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fast
     return best_voted_alleles, vote_log, ties
   end
 
-  # Start the code of function call_alleles():
   # get all calls:
   allele_calls = [call_allele(votes[idx], loci_votes[idx], loci[idx], loci2alleles[idx], fasta_files[idx]) for (idx, locus) in enumerate(loci)]
-  # allele_calls = pmap(x->call_allele(x...), [(k, kmer_count, votes[idx], loci_votes[idx], loci[idx], loci2alleles[idx], fasta_files[idx], kmer_thr, max_mutations) for (idx, locus) in enumerate(loci)])
+# allele_calls = pmap(x->call_allele(x...), [(k, kmer_count, votes[idx], loci_votes[idx], loci[idx], loci2alleles[idx], fasta_files[idx], kmer_thr, max_mutations) for (idx, locus) in enumerate(loci)])
 
   # Also do voting output?
   if output_votes
