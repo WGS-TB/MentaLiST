@@ -30,7 +30,7 @@ def mentalist_download_enterobase( data_manager_dict, kmer_size, scheme, type, p
     if return_code:
         print("Error building database.", file=sys.stderr)
         sys.exit( return_code )
-    data_table_entry = dict( value=database_path, dbkey='PubMLST', name=display_name, path=database_name )
+    data_table_entry = dict( value=database_path, dbkey='Enterobase', name=display_name, path=database_name )
     for data_table_name in data_table_names:
         _add_data_table_entry( data_manager_dict, data_table_name, data_table_entry )
 
