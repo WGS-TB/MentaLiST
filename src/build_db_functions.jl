@@ -408,6 +408,7 @@ function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fast
       # if locus has no votes (no kmer present), output a zero:
       if loci_votes[idx] == 0
         push!(best_voted_alleles, "0")
+        push!(vote_log, ("0","No kmers matches on this locus."))
         continue
       end
       # if it has votes, sort and pick the best;
