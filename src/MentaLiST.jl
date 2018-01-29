@@ -1,7 +1,10 @@
 #!/usr/bin/env julia
 
+using Suppressor
+@suppress_err begin
 using Lumberjack
 using ArgParse
+end
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -84,10 +87,6 @@ function parse_commandline()
         "-c", "--disable_compression"
           help = "Disables the default compression of the database, that stores only the most informative kmers. Not recommended unless for debugging."
           action = :store_true
-        "--threads"
-          arg_type = Int
-          default = 2
-          help = "Number of threads used in parallel."
     end
     @add_arg_table s["list_pubmlst"] begin
       "-p", "--prefix"
@@ -121,10 +120,6 @@ function parse_commandline()
       "-c", "--disable_compression"
         help = "Disables the default compression of the database, that stores only the most informative kmers. Not recommended unless for debugging."
         action = :store_true
-      "--threads"
-        arg_type = Int
-        default = 2
-        help = "Number of threads used in parallel."
     end
 
     @add_arg_table s["download_cgmlst"] begin
@@ -147,10 +142,6 @@ function parse_commandline()
       "-c", "--disable_compression"
         help = "Disables the default compression of the database, that stores only the most informative kmers. Not recommended unless for debugging."
         action = :store_true
-      "--threads"
-        arg_type = Int
-        default = 2
-        help = "Number of threads used in parallel."
     end
 
     @add_arg_table s["download_enterobase"] begin
@@ -177,10 +168,6 @@ function parse_commandline()
       "-c", "--disable_compression"
         help = "Disables the default compression of the database, that stores only the most informative kmers. Not recommended unless for debugging."
         action = :store_true
-      "--threads"
-        arg_type = Int
-        default = 2
-        help = "Number of threads used in parallel."
     end
 
     return parse_args(s)
@@ -199,9 +186,9 @@ function call_mlst(args)
   info("Voting for alleles ... ")
   votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
   info("Calling alleles and novel alleles ...")
-  allele_calls, voting_result = call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], args["kt"], args["mutation_threshold"], args["output_votes"])
+  allele_calls, novel_alleles, report, alleles_to_check, voting_result = call_alleles(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], args["kt"], args["mutation_threshold"], args["output_votes"])
   info("Writing output ...")
-  write_calls(loci2alleles, allele_calls, loci, voting_result, args["s"], args["o"], profile, args["output_special"])
+  write_calls(DNAKmer{k}, loci2alleles, allele_calls, novel_alleles, report, alleles_to_check, loci, voting_result, args["s"], args["o"], profile, args["output_special"])
 
   info("Done.")
 end
@@ -244,8 +231,6 @@ function download_enterobase(args)
 end
 
 function build_db(args)
-  # parallel: number of processors.
-  addprocs(args["threads"])
   include("build_db_functions.jl")
   # check if files exist:
   check_files(args["fasta_files"])
