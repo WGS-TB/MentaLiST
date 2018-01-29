@@ -279,7 +279,7 @@ function write_calls(votes, loci_votes, loci, loci2alleles, sample, filename, pr
   best_voted_alleles = [loci2alleles[locus_idx][best] for (locus_idx, best) in enumerate(best_voted_alleles)]
   # check if there is a type on the database:
   genotype, clonal_complex = _find_profile(best_voted_alleles, profile)
-  
+
   # write:
   open(filename, "w") do f
     header = join(vcat(["Sample"], loci, ["ST", "clonal_complex"]), "\t")
@@ -334,7 +334,6 @@ function count_kmers_and_vote{k}(::Type{DNAKmer{k}}, files, kmer_db, loci2allele
       end
     end
   end
-
   # Now count votes:
   # 0 votes for all alleles everyone at the start:
   votes = Dict(locus_idx => Dict{Int16, Int}(i => 0 for i in 1:length(alleles)) for (locus_idx,alleles) in loci2alleles)
@@ -351,6 +350,6 @@ function count_kmers_and_vote{k}(::Type{DNAKmer{k}}, files, kmer_db, loci2allele
       end
     end
   end
-  
+
   return votes, loci_votes
 end
