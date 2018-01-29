@@ -39,7 +39,7 @@ function get_contig{k}(::Type{DNAKmer{k}}, kmers, km)
   end
 end
 
-@everywhere function get_contig_forward{k}(::Type{DNAKmer{k}}, kmers, km)
+function get_contig_forward{k}(::Type{DNAKmer{k}}, kmers, km)
     c_fw = DNAKmer{k}[km]
     while true
         # check if forward exists, and only 1:
@@ -51,7 +51,7 @@ end
         if candidate == km || candidate == twin(DNAKmer{k}, km) || candidate == twin(DNAKmer{k}, c_fw[end])
           break
         end
-        bw_neighbors = [kmer for kmer in neighbors(twin(DNAKmer{k}, candidate)) if canonical(kmer) in kmers]
+        bw_neighbors = [kmer for kmer in neighbors(twin(DNAKmer{k}, candidate)) if kmer in kmers]
         if length(bw_neighbors) != 1
           break
         end
@@ -88,6 +88,7 @@ function db_graph_contig_kmers{k}(::Type{DNAKmer{k}}, fastafiles)
   # println(maximum(values(contig_kmers)))
   return contig_kmers
 end
+
 
 # # main:
 #   k = 31
