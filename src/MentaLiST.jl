@@ -1,7 +1,10 @@
 #!/usr/bin/env julia
 
+using Suppressor
+@suppress_err begin
 using Lumberjack
 using ArgParse
+end
 
 function parse_commandline()
     s = ArgParseSettings()
