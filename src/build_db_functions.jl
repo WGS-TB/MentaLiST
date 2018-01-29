@@ -1,5 +1,7 @@
 using Suppressor
 @suppress_err begin
+using Bio.Seq
+using DataStructures
 import GZip
 import JLD
 import FileIO: File, @format_str
@@ -370,6 +372,7 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
         push!(allele_calls, "$(loci2alleles[idx][allele])")
         depth = sorted_allele_coverage[1][3][1]
         push!(report, (1, var_ab, "$(loci2alleles[idx][allele])")) # Coverage, Minkmer depth, Call
+
       else
        # found really something new, save the novel allele;
         novel_alleles[idx] = try_novel_allele
