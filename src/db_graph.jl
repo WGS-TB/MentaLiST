@@ -39,7 +39,7 @@ function get_contig{k}(::Type{DNAKmer{k}}, kmers, km)
   end
 end
 
-@everywhere function get_contig_forward{k}(::Type{DNAKmer{k}}, kmers, km)
+function get_contig_forward{k}(::Type{DNAKmer{k}}, kmers, km)
     c_fw = DNAKmer{k}[km]
     while true
         # check if forward exists, and only 1:
@@ -86,6 +86,7 @@ function db_graph_contig_kmers{k}(::Type{DNAKmer{k}}, fastafiles)
   return contig_kmers
 end
 
+
 # Calling:
 function sequence_coverage{k}(::Type{DNAKmer{k}}, sequence, kmer_count, kmer_thr=6)
   # find the minimum coverage depth of all kmers of the given variant, and
@@ -110,7 +111,6 @@ end
 
 function find_allele_variants{k}(::Type{DNAKmer{k}}, allele_seqs, template_alleles, kmer_count, kmer_thr=8, max_mutations=10)
   novel_allele_list = []
-  gap_cover_list = []
   found = Set{String}()
   function scan_variant(n_mut, allele, sequence, events, start_pos=1)
     if n_mut > max_mutations
@@ -216,6 +216,8 @@ function find_allele_variants{k}(::Type{DNAKmer{k}}, allele_seqs, template_allel
   end
 
 end
+
+
 
 function describe_mutation(mut)
   mut, pos, desc = mut
