@@ -8,7 +8,6 @@ import FileIO: File, @format_str
 import Blosc
 using OpenGene
 end
-
 include("db_graph.jl")
 
 function check_files(files)
@@ -70,6 +69,7 @@ function combine_loci_classification(k, results, loci)
 
   # locus to int.
   l2int = Dict{String,Int16}(locus => idx for (idx, locus) in enumerate(loci))
+  # weight::Int8 = 0
   weight::Int16 = 0
 
   for (locus,kmer_class, allele_ids, kmer_weights) in results
@@ -156,7 +156,7 @@ function save_db(k, kmer_db, loci, filename, profile)
     "allele_ids_per_locus" => Blosc.compress(allele_ids_per_locus),
     "kmer_list" => join(kmer_list,""),
     "k"=>k,
-    "loci"=>loci,
+    "loci"=>loci
   )
   # alleles list: potentially larger than 2G, so check limit:
   limit = floor(Int,2000000000/sizeof(alleles_list[1])) # Blosc limit is 2147483631, slightly less than 2G (2147483648). Using 2000000000 just to make it easier on the eye. :)
@@ -315,11 +315,12 @@ function write_calls(votes, loci_votes, loci, loci2alleles, sample, filename, pr
   open("$filename.ties.txt", "w") do f
     for (locus, tied_alleles) in sort(collect(ties), by=x->x[1])
       ties_txt = join(["$t" for t in tied_alleles],", ")
-      write(f, "$locus\t$ties_txt\n")  
+      write(f, "$locus\t$ties_txt\n")
+    end
   end
 end
 
-function count_kmers_in_db_only{k}(::Type{DNAKmer{k}}, files, kmer_db, loci2alleles)
+function count_kmers_and_vote{k}(::Type{DNAKmer{k}}, files, kmer_db, loci2alleles)
   # Count kmers:
   kmer_count = DefaultDict{DNAKmer{k},Int}(0)
   for f in files
@@ -350,5 +351,6 @@ function count_kmers_in_db_only{k}(::Type{DNAKmer{k}}, files, kmer_db, loci2alle
       end
     end
   end
+  
   return votes, loci_votes
 end
