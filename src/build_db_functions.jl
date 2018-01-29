@@ -6,7 +6,6 @@ import FileIO: File, @format_str
 import Blosc
 using OpenGene
 end
-
 include("db_graph.jl")
 
 function check_files(files)
@@ -348,7 +347,6 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
       push!(report, (round(coverage,4), depth, "Not present; allele $allele_label is the best voted but below threshold with $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers.")) # Coverage, Minkmer depth, Call
       continue
     end
-
     # otherwise, try to find a novel allele; get the most covered allele as template:
     template_alleles = [sorted_allele_coverage[1][1]]
     # if there is a tie with other alleles, also include them, up to 10.
@@ -384,6 +382,7 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
         # save, closest and novel:
         push!(alleles_to_check, (locus, loci2alleles[idx][used_template_allele], allele_seqs[used_template_allele], "Template for novel allele."))
         push!(alleles_to_check, (locus, "Novel", sequence, "$n_mut $mutations_txt from allele $template_allele_label: $mutation_desc"))
+
       end
     else
       # did not find anything; output allele/N, not sure which;
@@ -392,7 +391,7 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
       allele_label = loci2alleles[idx][allele]
       push!(allele_calls, "$allele_label/N?")
       push!(report, (round(coverage,4), depth, "Partially covered alelle, novel or not present; Most covered allele $allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found.")) # Coverage, Minkmer depth, Call
-+      push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Uncovered, novel or not present; Allele $allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found."))
+      push!(alleles_to_check, (locus, loci2alleles[idx][allele], allele_seqs[allele], "Uncovered, novel or not present; Allele $allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found."))
     end
   end # end of per locus loop to call;
 
@@ -430,7 +429,6 @@ function call_alleles{k}(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci
   return allele_calls, novel_alleles, report, alleles_to_check, voting_result
 end
 
-
 function write_calls{k}(::Type{DNAKmer{k}}, loci2alleles, allele_calls, novel_alleles, report, alleles_to_check, loci, voting_result, sample, filename, profile, output_special_cases)
   # write the main call:
   st, clonal_complex = _find_profile(allele_calls, profile)
@@ -456,7 +454,6 @@ function write_calls{k}(::Type{DNAKmer{k}}, loci2alleles, allele_calls, novel_al
     end
   end
   # write novel alleles:
-
   if length(novel_alleles) > 0
     open("$filename.novel.fa", "w") do fasta
       open("$filename.novel.txt", "w") do text
