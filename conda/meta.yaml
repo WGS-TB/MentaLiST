@@ -1,5 +1,5 @@
 {% set name = "MentaLiST" %}
-{% set version = "0.2_SNAPSHOT" %}
+{% set version = "0.2.1" %}
 
 package:
   name: {{ name|lower }}
@@ -7,19 +7,19 @@ package:
 
 source:
   git_url: https://github.com/WGS-TB/MentaLiST.git
-  git_rev: mentalist_v0.2
+  git_rev: v0.2.1
     
 build:
   skip: True  # [osx]
 
 requirements:
   build:
-    - julia 0.5.2
+    - julia 0.6.1
     - hdf5
     - mpfr
     - libxml2
   run:
-    - julia 0.5.2
+    - julia 0.6.1
     - hdf5
     - mpfr
 
