@@ -12,6 +12,7 @@ julia -e 'Pkg.add("Bio")'
 julia -e 'Pkg.add("OpenGene")'
 julia -e 'Pkg.add("Logging")'
 julia -e 'Pkg.add("Lumberjack")'
+julia -e 'Pkg.add("FastaIO")'
 
 rm -f "$PREFIX"/share/julia/site/lib/v*/*.ji
 rm -rf "$PREFIX"/share/julia/site/v*/METADATA
