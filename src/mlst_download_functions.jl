@@ -1,8 +1,5 @@
-using Suppressor
-@suppress_err begin
-  using LightXML
-  import GZip
-end
+using LightXML
+import GZip
 
 mentalist_shared_data_path = string(ENV["HOME"], "/", ".mentalist")
 

@@ -186,9 +186,18 @@ function parse_commandline()
     return parse_args(s)
 end
 
+# Check if files exist:
+function check_files(files)
+  dont_exist = [file for file in files if !isfile(file)]
+  if length(dont_exist) > 0
+    Lumberjack.warn("The following input file(s) could not be found: $(join(dont_exist,',')), aborting ...")
+    exit(-1)
+  end
+end
+
 #### Main COMMAND functions:
 function call_mlst(args)
-  include("build_db_functions.jl")
+  # include("calling_functions.jl")
   # check if the files exist:
   check_files([args["db"];args["files"]])
   info("Opening kmer database ... ")
@@ -207,12 +216,12 @@ function call_mlst(args)
 end
 
 function list_pubmlst(args)
-  include("mlst_download_functions.jl")
+  # include("mlst_download_functions.jl")
   list_pubmlst_schema(args["prefix"])
 end
 
 function download_pubmlst(args)
-  include("mlst_download_functions.jl")
+  # include("mlst_download_functions.jl")
   loci_files, profile_file = download_pubmlst_scheme(args["scheme"], args["output"])
   info("Building the k-mer database ...")
   args["fasta_files"] = loci_files
@@ -221,12 +230,12 @@ function download_pubmlst(args)
 end
 
 function list_cgmlst(args)
-  include("mlst_download_functions.jl")
+  # include("mlst_download_functions.jl")
   list_cgmlst_schema(args["prefix"])
 end
 
 function download_cgmlst(args)
-  include("mlst_download_functions.jl")
+  # include("mlst_download_functions.jl")
   loci_files = download_cgmlst_scheme(args["scheme"], args["output"])
   info("Building the k-mer database ...")
   args["fasta_files"] = loci_files
@@ -235,7 +244,7 @@ function download_cgmlst(args)
 end
 
 function download_enterobase(args)
-  include("mlst_download_functions.jl")
+  # include("mlst_download_functions.jl")
   loci_files = download_enterobase_scheme(args["scheme"], args["type"], args["output"])
   info("Building the k-mer database ...")
   args["fasta_files"] = loci_files
@@ -245,8 +254,8 @@ end
 
 function build_db(args)
   # parallel: number of processors.
-  addprocs(args["threads"])
-  include("build_db_functions.jl")
+  # addprocs(args["threads"])
+  # include("build_db_functions.jl")
   # check if files exist:
   check_files(args["fasta_files"])
   # converto to absolute path:
@@ -267,24 +276,41 @@ function build_db(args)
 end
 
 ##### Main function: just calls the appropriate commands, with arguments:
-function main()
-  args = parse_commandline()
-  # determine command:
-  if args["%COMMAND%"] == "call"
-    call_mlst(args["call"])
-  elseif args["%COMMAND%"] == "build_db"
-    build_db(args["build_db"])
-  elseif args["%COMMAND%"] == "list_pubmlst"
-    list_pubmlst(args["list_pubmlst"])
-  elseif args["%COMMAND%"] == "download_pubmlst"
-    download_pubmlst(args["download_pubmlst"])
-  elseif args["%COMMAND%"] == "list_cgmlst"
-    list_cgmlst(args["list_cgmlst"])
-  elseif args["%COMMAND%"] == "download_cgmlst"
-    download_cgmlst(args["download_cgmlst"])
-  elseif args["%COMMAND%"] == "download_enterobase"
-    download_enterobase(args["download_enterobase"])
-  end
-end
 
-main()
+args = parse_commandline()
+# determine command:
+if args["%COMMAND%"] == "call"
+  include("calling_functions.jl")
+  call_mlst(args["call"])
+elseif args["%COMMAND%"] == "build_db"
+  addprocs(args["build_db"]["threads"])
+  include("build_db_functions.jl")
+  build_db(args["build_db"])
+
+elseif args["%COMMAND%"] == "list_pubmlst"
+  include("mlst_download_functions.jl")
+  list_pubmlst(args["list_pubmlst"])
+
+elseif args["%COMMAND%"] == "download_pubmlst"
+  include("mlst_download_functions.jl")
+  addprocs(args["download_pubmlst"]["threads"])
+  include("build_db_functions.jl")
+  download_pubmlst(args["download_pubmlst"])
+
+elseif args["%COMMAND%"] == "list_cgmlst"
+  include("mlst_download_functions.jl")
+  list_cgmlst(args["list_cgmlst"])
+
+elseif args["%COMMAND%"] == "download_cgmlst"
+  include("mlst_download_functions.jl")
+  addprocs(args["download_cgmlst"]["threads"])
+  include("build_db_functions.jl")
+  download_cgmlst(args["download_cgmlst"])
+
+elseif args["%COMMAND%"] == "download_enterobase"
+  include("mlst_download_functions.jl")
+  addprocs(args["download_enterobase"]["threads"])
+  include("build_db_functions.jl")
+  download_enterobase(args["download_enterobase"])
+
+end
