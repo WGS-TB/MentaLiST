@@ -4,6 +4,6 @@ OpenGene
 Logging
 ArgParse
 Lumberjack
-Suppressor
 FastaIO
 JLD
+DataStructures
