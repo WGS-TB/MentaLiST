@@ -52,8 +52,8 @@ The conda environment can be deactivated by running:
 
 There is currently no conda recipe for julia on macOS, so a more manual installation process is required.
 
-1. Download the [julia-0.5.2.dmg](https://julialang-s3.julialang.org/bin/mac/x64/0.5/julia-0.5.2-mac64.dmg) file from julialang.org and install it by dragging the `Julia-0.5.app` bundle into your Applications folder.
-2. Launch the `Julia-0.5` application and install all of the dependencies listed in the [REQUIRE](REQUIRE) file:
+1. Download the [julia-0.6.2.dmg](https://julialang-s3.julialang.org/bin/mac/x64/0.6/julia-0.6.2-mac64.dmg) file from julialang.org and install it by dragging the `Julia-0.5.app` bundle into your Applications folder.
+2. Launch the `Julia-0.6` application and install all of the dependencies listed in the [REQUIRE](REQUIRE) file:
 
 ```julia
 julia> Pkg.update()
@@ -66,7 +66,7 @@ julia> Pkg.add("FastaIO")
 julia> Pkg.add("JLD")
 julia> Pkg.add("DataStructures")
 ```
-3. Add `/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia` to your `PATH` 
+3. Add `/Applications/Julia-0.6.app/Contents/Resources/julia/bin/julia` to your `PATH` 
 4. Clone the MentaLiST git repostory (https://github.com/WGS-TB/MentaLiST.git). MentaLiST can be run directly from the repository: `src/mentalist -h`.
 
 ## Quick Start
