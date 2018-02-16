@@ -62,7 +62,9 @@ julia> Pkg.add("OpenGene")
 julia> Pkg.add("Logging")
 julia> Pkg.add("ArgParse")
 julia> Pkg.add("Lumberjack")
-julia> Pkg.add("Suppressor")
+julia> Pkg.add("FastaIO")
+julia> Pkg.add("JLD")
+julia> Pkg.add("DataStructures")
 ```
 3. Add `/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia` to your `PATH` 
 4. Clone the MentaLiST git repostory (https://github.com/WGS-TB/MentaLiST.git). MentaLiST can be run directly from the repository: `src/mentalist -h`.
