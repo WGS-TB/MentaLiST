@@ -5,7 +5,7 @@ MentaLiST -- The MLST pipeline developed by the PathOGiST research group
 ## Build status
 
 [![Build Status](https://travis-ci.org/WGS-TB/MentaLiST.svg?branch=mentalist_v0.1)](https://travis-ci.org/WGS-TB/MentaLiST)
-
+[![Coverage Status](https://coveralls.io/repos/github/WGS-TB/MentaLiST/badge.svg?branch=mentalist_v0.1)](https://coveralls.io/github/WGS-TB/MentaLiST?branch=mentalist_v0.1)
 ## Abstract
 
 MLST (multi-locus sequence typing) is a classic technique for genotyping
