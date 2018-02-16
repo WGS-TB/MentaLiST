@@ -29,14 +29,6 @@ end
   end
 end
 
-@testset "kmer_class_for_locus" begin
-  kmer = DNAKmer("AAGTTACAGTTACATCTGCTCCAATTACAGC")
-  kmer_class_aspA_k31_uncompressed = kmer_class_for_locus(DNAKmer{31}, string(c_jejuni_pubmlst_dir, "/", "aspA.tfa"), false)
-  kmer_class_aspA_k31_compressed = kmer_class_for_locus(DNAKmer{31}, string(c_jejuni_pubmlst_dir, "/", "aspA.tfa"), true)
-  @test kmer_class_aspA_k31_uncompressed[1][kmer] == [Int16(303)]
-#  @test kmer_class_aspA_k31_compressed[1][kmer] == [Int16(303)]
-end
-
 @testset "complement_alleles" begin
   @test complement_alleles([], 0) == Int16[]
   @test complement_alleles([], 1) == [Int16(1)]
