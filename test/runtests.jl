@@ -1,13 +1,9 @@
 using Base.Test
 using Base.@__FILE__
 
-using Suppressor
-
-@suppress_err begin
 include("../src/mlst_download_functions.jl")
 include("../src/build_db_functions.jl")
 include("../src/db_graph.jl")
-end
 
 TEST_DIR = (dirname(@__FILE__))
 TMPDIR = mktempdir()
@@ -31,14 +27,6 @@ end
   for l_pneumophila_allele_filename in eachline(l_pneumophila_allele_filenames)
     @test isfile(string(l_pneumophila_cgmlst_dir, "/", chomp(l_pneumophila_allele_filename)))
   end
-end
-
-@testset "kmer_class_for_locus" begin
-  kmer = DNAKmer("AAGTTACAGTTACATCTGCTCCAATTACAGC")
-  kmer_class_aspA_k31_uncompressed = kmer_class_for_locus(DNAKmer{31}, string(c_jejuni_pubmlst_dir, "/", "aspA.tfa"), false)
-  kmer_class_aspA_k31_compressed = kmer_class_for_locus(DNAKmer{31}, string(c_jejuni_pubmlst_dir, "/", "aspA.tfa"), true)
-  @test kmer_class_aspA_k31_uncompressed[1][kmer] == [Int16(303)]
-#  @test kmer_class_aspA_k31_compressed[1][kmer] == [Int16(303)]
 end
 
 @testset "complement_alleles" begin
