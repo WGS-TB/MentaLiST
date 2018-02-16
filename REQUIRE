@@ -1,7 +1,9 @@
-julia 0.5
+julia
 Bio
 OpenGene
 Logging
 ArgParse
 Lumberjack
-Suppressor
+FastaIO
+JLD
+DataStructures

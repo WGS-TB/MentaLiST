@@ -1,13 +1,9 @@
 using Base.Test
 using Base.@__FILE__
 
-using Suppressor
-
-@suppress_err begin
 include("../src/mlst_download_functions.jl")
 include("../src/build_db_functions.jl")
 include("../src/db_graph.jl")
-end
 
 TEST_DIR = (dirname(@__FILE__))
 TMPDIR = mktempdir()
