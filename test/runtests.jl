@@ -38,7 +38,8 @@ end
   @test complement_alleles([0], 1) == [Int16(1)]
   @test complement_alleles([1], 0) == Int16[]
   @test complement_alleles([1], 1) == Int16[]
-  @test complement_alleles([], 0) == Int16[]
+  @test complement_alleles([0,1,3,5,7,9], 10) == Int16[2,4,6,8,10]
+  @test complement_alleles([0,2,4,6,8,10], 10) == Int16[1,3,5,7,9]
 end
 
 @testset "twin" begin
@@ -47,6 +48,7 @@ end
   @test twin(DNAKmer{1}, DNAKmer("C")) == DNAKmer("G")
   @test twin(DNAKmer{1}, DNAKmer("G")) == DNAKmer("C")
   @test twin(DNAKmer{1}, DNAKmer("T")) == DNAKmer("A")
+  @test twin(DNAKmer{4}, DNAKmer("ACTG")) == DNAKmer("CAGT")
 end
 
 # rm(TMPDIR, recursive=true)
