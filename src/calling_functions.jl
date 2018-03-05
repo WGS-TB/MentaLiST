@@ -54,6 +54,7 @@ function open_db(filename)
 
   # Compressed database, open and decompress/decode in memory:
   d = JLD.load("$filename")
+  info("Finished the JLD load.")
   # alleles_list might be split into smaller parts:
   alleles_list = []
   if haskey(d, "alleles_list")
@@ -84,6 +85,7 @@ function open_db(filename)
     locus_idx += 1
   end
   # build the kmer db in the usual format:
+  info("Building kmer index ...")
   kmer_classification = Dict{DNAKmer{k}, Vector{Tuple{Int16, Int16, Vector{Int16}}}}()
 # tuple is locus idx, weight, and list of alleles;
   loci_list_idx = 1
