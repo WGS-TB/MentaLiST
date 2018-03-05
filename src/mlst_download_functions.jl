@@ -217,7 +217,7 @@ function download_cgmlst_scheme(target_id, output_dir, overwrite=false)
       write(current_fasta_fh, ">$(locus)_$id\n")
     else #
       if current_fasta_fh != nothing
-        write(current_fasta_fh, l)
+        write(current_fasta_fh, "$l\n")
       end
     end
   end
