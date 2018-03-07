@@ -1,6 +1,6 @@
-<tool id="mentalist_call" name="MentaLiST MLST Analysis" version="0.1.3">
+<tool id="mentalist_call" name="MentaLiST MLST Analysis" version="master">
   <requirements>
-    <requirement type="package" version="0.1.3">mentalist</requirement>
+    <requirement type="package" version="master">mentalist</requirement>
   </requirements>
   <edam_operations>
     <edam_operation>operation_3840</edam_operation>
