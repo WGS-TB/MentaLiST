@@ -1,6 +1,6 @@
 using Bio.Seq: BioSequence, DNASequence, DNAAlphabet, DNAKmer, canonical, FASTASeqRecord, FASTAReader, each, neighbors
+using DataStructures: DefaultDict, OrderedDict
 using FastaIO
-using DataStructures: DefaultDict
 using OpenGene: fastq_open, fastq_read
 import JLD: load, save
 
@@ -303,75 +303,85 @@ function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fast
 end
 
 
-function write_calls(loci2alleles, allele_calls, loci, voting_result, sample, filename, profile, output_special_cases)
+function write_calls(sample_results, loci, loci2alleles, filename, profile, output_special_cases, output_votes)
+# function write_calls(loci2alleles, allele_calls, loci, voting_result, sample, filename, profile, output_special_cases)
   # write the main call:
-  allele_label_calls = ["$(call.allele)$(call.flag)" for call in allele_calls]
-  st, clonal_complex = _find_profile(allele_label_calls, profile)
   open(filename, "w") do f
     header = join(vcat(["Sample"], loci, ["ST", "clonal_complex"]), "\t")
     write(f,  "$header\n")
-    calls = join(vcat([sample], allele_label_calls, ["$st", clonal_complex]), "\t")
-    write(f, "$calls\n")
+    for (sample, allele_calls, voting_result) in sample_results
+      allele_label_calls = ["$(call.allele)$(call.flag)" for call in allele_calls]
+      st, clonal_complex = _find_profile(allele_label_calls, profile)
+      calls = join(vcat([sample], allele_label_calls, ["$st", clonal_complex]), "\t")
+      write(f, "$calls\n")
+    end
   end
   # write the call report:
   open("$filename.coverage.txt", "w") do f
-    write(f, "Locus\tCoverage\tMinKmerDepth\tCall\n")
-    for (locus, call) in zip(loci, allele_calls)
-      write(f, "$locus\t$(call.coverage)\t$(call.depth)\t$(call.report_txt)\n")
+    write(f, "Sample\tLocus\tCoverage\tMinKmerDepth\tCall\n")
+    for (sample, allele_calls, voting_result) in sample_results
+      for (locus, call) in zip(loci, allele_calls)
+        write(f, "$sample\t$locus\t$(call.coverage)\t$(call.depth)\t$(call.report_txt)\n")
+      end
     end
   end
   # write the alleles with novel, missing, or multiple calls:
-  alleles_to_check = [(locus, check...) for (locus, call) in zip(loci, allele_calls) for check in call.alleles_to_check if length(call.alleles_to_check) > 0]
+  alleles_to_check = [(locus, allele_to_check...) for (sample, allele_calls, voting_result) in sample_results for (locus, call) in zip(loci, allele_calls) for allele_to_check in call.alleles_to_check if length(call.alleles_to_check) > 0]
   if output_special_cases && length(alleles_to_check) > 0
     open("$filename.special_cases.fa", "w") do f
+      # TODO: deal with repeated alleles;
       for (locus, al, seq, desc) in alleles_to_check
         write(f,">$(locus)_$al $desc\n$seq\n")
       end
     end
   end
   # write novel alleles:
-  novel_alleles = [(locus, call.novel_allele) for (locus, call) in zip(loci, allele_calls) if call.novel_allele.template_allele != -1]
-  if length(novel_alleles) > 0
-    open("$filename.novel.fa", "w") do fasta
-      open("$filename.novel.txt", "w") do text
-        write(text, "Loci\tMinKmerDepth\tNmut\tDesc\n")
-        for (locus, novel_allele) in novel_alleles
-          write(fasta, ">$locus\n$(novel_allele.sequence)\n")
-          mutation_desc = join([describe_mutation(ev) for ev in novel_allele.mutations_list], ", ")
-          write(text, "$locus\t$(novel_allele.depth)\t$(novel_allele.n_mutations)\tFrom allele $(novel_allele.template_allele), $mutation_desc.\n")
-        end
-      end
-    end
-  end
+  # TODO: with multiple samples, we have to check how many
+  # novel_alleles = [(locus, call.novel_allele) for (locus, call) in zip(loci, allele_calls) if call.novel_allele.template_allele != -1]
+  # if length(novel_alleles) > 0
+  #   open("$filename.novel.fa", "w") do fasta
+  #     open("$filename.novel.txt", "w") do text
+  #       write(text, "Loci\tMinKmerDepth\tNmut\tDesc\n")
+  #       for (locus, novel_allele) in novel_alleles
+  #         write(fasta, ">$locus\n$(novel_allele.sequence)\n")
+  #         mutation_desc = join([describe_mutation(ev) for ev in novel_allele.mutations_list], ", ")
+  #         write(text, "$locus\t$(novel_allele.depth)\t$(novel_allele.n_mutations)\tFrom allele $(novel_allele.template_allele), $mutation_desc.\n")
+  #       end
+  #     end
+  #   end
+  # end
   # write also the votes if we got them:
-  if voting_result != nothing
-    best_voted_alleles, vote_log, ties = voting_result
-    st, clonal_complex = _find_profile(best_voted_alleles, profile)
-    open("$filename.byvote", "w") do f
-      header = join(vcat(["Sample"], loci, ["ST", "clonal_complex"]), "\t")
-      write(f,  "$header\n")
+  if output_votes
+    f_vote_call = open("$filename.byvote", "w")
+    f_details = open("$filename.votes.txt", "w")
+    f_ties = open("$filename.ties.txt", "w")
+    # headers:
+    write(f_vote_call,  "$(join(vcat(["Sample"], loci, ["ST", "clonal_complex"]), "\t"))\n")
+    write(f_details, "Sample\tLocus\tTotal locus votes\tAllele(relative votes),...\n")
+    write(f_ties, "Sample\tLocus\tTied Alleles\n")
+    # loop per sample:
+    for (sample, allele_calls, voting_result) in sample_results
+      # write the voting call:
+      best_voted_alleles, vote_log, ties = voting_result
+      st, clonal_complex = _find_profile(best_voted_alleles, profile)
       calls = join(vcat([sample], best_voted_alleles, ["$st", clonal_complex]), "\t")
-      write(f, "$calls\n")
-    end
-    # write the detailed votes:
-    open("$filename.votes.txt", "w") do f
-      write(f, "Locus\tTotalLocusVotes\tAllele(votes),...\n")
+      write(f_vote_call, "$calls\n")
+      # write the detailed votes:
       for (locus, data) in zip(loci, vote_log)
-        write(f, "$locus\t$(join(data,'\t'))\n")
+        write(f_details, "$sample\t$locus\t$(join(data,'\t'))\n")
       end
-    end
-
-    # write ties:
-    if length(ties) > 0
-      open("$filename.ties.txt", "w") do f
+      # write ties:
+      if length(ties) > 0
         for (locus, tied_alleles) in sort(collect(ties), by=x->x[1])
           ties_txt = join(["$t" for t in tied_alleles],", ")
-          write(f, "$locus\t$ties_txt\n")
+          write(f_ties, "$sample\t$locus\t$ties_txt\n")
         end
       end
     end
+    close(f_vote_call)
+    close(f_details)
+    close(f_ties)
   end
-
 end
 
 function count_kmers_in_db_only{k}(::Type{DNAKmer{k}}, files, kmer_db)
@@ -667,3 +677,57 @@ function describe_mutation(mut)
     return ""
   end
 end
+
+
+### input file helper calling_functions
+
+function build_sample_files(forward_files, reverse_files)
+  if reverse_files == nothing # single files only
+    return Dict(remove_fastq_ext(fw_file) => [fw_file] for fw_file in forward_files)
+  end
+  if length(forward_files) != length(reverse_files)
+    error("Forward and reverse input file does not match, got $(length(forward_files)) forward and $(length(reverse_files)) reverse.")
+  end
+  # build sample files for fw and rev:
+  sample_files = OrderedDict{String, Vector{String}}()
+  for (fw, rev) in zip(forward_files, reverse_files)
+    sample = lcp([fw,rev])
+    if sample == ""
+      error("No match between forward and reverse files $fw and $bw, please check the input options --1 and --2.")
+    end
+    sample_files[sample] = [fw,rev]
+  end
+  return sample_files
+end
+# build inputs, checking if multiple samples or simple:
+# sample_files = OrderedDict{String, Vector{String}}()
+# if (args["multiple_samples_file"] != nothing) # multiple samples, build dict from file:
+#     sample_file = args["multiple_samples_file"]
+#     check_files([sample_file])
+#     open(sample_file) do f
+#       for ln in eachline(f)
+#         sample, fastq = split(strip(ln))
+#         if !haskey(sample_files, sample)
+#           sample_files[sample] = String[]
+#         end
+#         push!(sample_files[sample], fastq)
+#       end
+#     end
+# else
+#   sample_files[args["s"]] = args["files"]
+# end
+
+# longest common prefix
+function lcp(str::Vector{String})
+  r = IOBuffer()
+  i = 1
+  while all(i <= length(s) for s in str) && all(s == str[1][i] for s in getindex.(str, i))
+    print(r, str[1][i])
+    i += 1
+  end
+  return strip(basename(String(r)),['_','.','-'])
+end
+# # Remove fastq
+function remove_fastq_ext(str)
+  return replace(str,  r"\.(fastq|fq)(\.gz)?", "")
+  end

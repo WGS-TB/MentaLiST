@@ -35,10 +35,6 @@ function parse_commandline()
           help = "Output file with MLST call"
           arg_type = String
           required = true
-        "-s"
-          help = "Sample name"
-          arg_type = String
-          required = true
         "--db"
           help = "Kmer database"
           required = true
@@ -57,10 +53,24 @@ function parse_commandline()
         "--output_special"
           help = "Also outputs a FASTA file with the alleles from special cases such as incomplete coverage, novel, and multiple alleles. This can help for creating a smaller MentaLiST database for testing different parameters or for using a read mapper to investigate the special cases more thoroughly. "
           action = :store_true
-        "files"
+        # "-s"
+        #   help = "Sample name on the output files."
+        #   arg_type = String
+        #   default = "sample"
+        # "files"
+        #   nargs = '*'
+        #   help = "FastQ input files, for one sample. For multiple samples, use the -m option."
+        #   arg_type = String
+        "-m", "--multiple_samples_file"
+          help = "Input TXT file for multiple samples. First column has the sample name, second the FASTQ file. Repeat the sample name for samples with more than one file (paired reads, f.i.)"
+        "--1"
           nargs = '*'
-          help = "FastQ input files"
-          required = true
+          help = "FastQ input files, one per sample, forward reads (or single reads)."
+          arg_type = String
+          # required = true
+        "--2"
+          nargs = '*'
+          help = "FastQ input files, one per sample, reverse reads."
           arg_type = String
     end
     # Build DB from FASTA, options:
@@ -197,31 +207,37 @@ end
 
 #### Main COMMAND functions:
 function call_mlst(args)
-  # include("calling_functions.jl")
-  # check if the files exist:
-  check_files([args["db"];args["files"]])
+  # get samples/fastq files from command line parameters:
+  sample_files = build_sample_files(args["1"], args["2"])
+
+  # check if DB and fastq files exist:
+  check_files([args["db"];[fastq for fq_files in values(sample_files) for fastq in fq_files]])
+  # array for saving each sample result:
+  sample_results = []
   info("Opening kmer database ... ")
   kmer_db, loci, loci2alleles, k, profile, build_args = open_db(args["db"])
 
-  info("Opening fastq file(s) and counting kmers ... ")
-  kmer_count = count_kmers(DNAKmer{k}, args["files"])
-  info("Voting for alleles ... ")
-  votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
-  info("Calling alleles and novel alleles ...")
-  allele_calls, voting_result = call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], args["kt"], args["mutation_threshold"], args["output_votes"])
+  # process each sample:
+  for (sample, fq_files) in sample_files
+    info("Sample: $sample. Opening fastq file(s) and counting kmers ... ")
+    kmer_count = count_kmers(DNAKmer{k}, fq_files)
+    info("Voting for alleles ... ")
+    votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
+    info("Calling alleles and novel alleles ...")
+    allele_calls, voting_result = call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], args["kt"], args["mutation_threshold"], args["output_votes"])
+    push!(sample_results, (sample, allele_calls, voting_result))
+  end
   info("Writing output ...")
-  write_calls(loci2alleles, allele_calls, loci, voting_result, args["s"], args["o"], profile, args["output_special"])
+  write_calls(sample_results, loci, loci2alleles, args["o"], profile, args["output_special"], args["output_votes"])
 
   info("Done.")
 end
 
 function list_pubmlst(args)
-  # include("mlst_download_functions.jl")
   list_pubmlst_schema(args["prefix"])
 end
 
 function download_pubmlst(args)
-  # include("mlst_download_functions.jl")
   loci_files, profile_file = download_pubmlst_scheme(args["scheme"], args["output"])
   info("Building the k-mer database ...")
   args["fasta_files"] = loci_files
@@ -230,12 +246,10 @@ function download_pubmlst(args)
 end
 
 function list_cgmlst(args)
-  # include("mlst_download_functions.jl")
   list_cgmlst_schema(args["prefix"])
 end
 
 function download_cgmlst(args)
-  # include("mlst_download_functions.jl")
   loci_files = download_cgmlst_scheme(args["scheme"], args["output"])
   info("Building the k-mer database ...")
   args["fasta_files"] = loci_files
@@ -244,7 +258,6 @@ function download_cgmlst(args)
 end
 
 function download_enterobase(args)
-  # include("mlst_download_functions.jl")
   loci_files = download_enterobase_scheme(args["scheme"], args["type"], args["output"])
   info("Building the k-mer database ...")
   args["fasta_files"] = loci_files
@@ -253,12 +266,9 @@ function download_enterobase(args)
 end
 
 function build_db(args)
-  # parallel: number of processors.
-  # addprocs(args["threads"])
-  # include("build_db_functions.jl")
   # check if files exist:
   check_files(args["fasta_files"])
-  # converto to absolute path:
+  # convert to absolute path:
   args["fasta_files"] = [abspath(f) for f in args["fasta_files"]]
   # get arguments and call the kmer db builder for each locus:
   k::Int8 = args["k"]
