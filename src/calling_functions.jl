@@ -4,6 +4,35 @@ using FastaIO
 using OpenGene: fastq_open, fastq_read
 import JLD: load, save
 
+### Main calling function:
+function run_calling_pipeline(args)
+  # get samples/fastq files from command line parameters:
+  sample_files = build_sample_files(args["multiple_samples_file"], args["1"], args["2"])
+
+  # check if DB and fastq files exist:
+  check_files([args["db"];[fastq for fq_files in values(sample_files) for fastq in fq_files]])
+  # array for saving each sample result:
+  sample_results = []
+  info("Opening kmer database ... ")
+  kmer_db, loci, loci2alleles, k, profile, build_args = open_db(args["db"])
+
+  # process each sample:
+  for (sample, fq_files) in sample_files
+    info("Sample: $sample. Opening fastq file(s) and counting kmers ... ")
+    kmer_count = count_kmers(DNAKmer{k}, fq_files)
+    info("Voting for alleles ... ")
+    votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
+    info("Calling alleles and novel alleles ...")
+    allele_calls, voting_result = call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], args["kt"], args["mutation_threshold"], args["output_votes"])
+    push!(sample_results, (sample, allele_calls, voting_result))
+  end
+  info("Writing output ...")
+  write_calls(sample_results, loci, loci2alleles, args["o"], profile, args["output_special"], args["output_votes"])
+
+  info("Done.")
+end
+
+
 ## Helper structs:
 type AlleleCoverage
   allele::Int16
@@ -681,7 +710,10 @@ end
 
 ### input file helper calling_functions
 
-function build_sample_files(forward_files, reverse_files)
+function build_sample_files(input_file, forward_files, reverse_files)
+  if all([x == nothing for x in [input_file, forward_files, reverse_files]])
+    error("You must give at least one input file using the parameters -m, --1 and/or --2.")
+  end
   if reverse_files == nothing # single files only
     return Dict(remove_fastq_ext(fw_file) => [fw_file] for fw_file in forward_files)
   end

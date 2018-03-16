@@ -92,7 +92,7 @@ function combine_loci_classification(k, results, loci)
   return (loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus)
 end
 
-function kmer_class_for_each_locus(k::Int8, files::Vector{String}, compress::Bool)
+function kmer_class_for_each_locus(k::Int8, files::Vector{String})
   loci = [splitext(basename(file))[1] for file in files]
   results = pmap(file->build_db_graph(DNAKmer{k}, file), files)
   return results, loci
