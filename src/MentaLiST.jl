@@ -68,7 +68,7 @@ function parse_commandline()
         "--output_special"
           help = "Outputs a FASTA file with the alleles from 'special cases' such as incomplete coverage, novel, and multiple alleles. "
           action = :store_true
-        "-m", "--multiple_samples_file"
+        "-i", "--sample_input_file"
           help = "Input TXT file for multiple samples. First column has the sample name, second the FASTQ file. Repeat the sample name for samples with more than one file (paired reads, f.i.)"
         "-1"
           nargs = '*'
@@ -166,9 +166,18 @@ end
 function check_files(files)
   dont_exist = [file for file in files if !isfile(file)]
   if length(dont_exist) > 0
-    Lumberjack.warn("The following input file(s) could not be found: $(join(dont_exist,',')), aborting ...")
-    exit(-1)
+    exit_error("The following input file(s) could not be found: $(join(dont_exist,',')).")
   end
+end
+
+### Error FUNCTIONS
+function exit_error(msg)
+  try
+    Lumberjack.error(msg)
+  catch
+    println("exiting ...")
+  end
+  exit(-1)
 end
 
 #### Main COMMAND functions:
@@ -261,8 +270,8 @@ elseif args["%COMMAND%"] == "download_cgmlst"
   download_cgmlst(args["download_cgmlst"])
 
 elseif args["%COMMAND%"] == "download_enterobase"
-  include("mlst_download_functions.jl")
   addprocs(args["download_enterobase"]["threads"])
+  include("mlst_download_functions.jl")
   include("build_db_functions.jl")
   download_enterobase(args["download_enterobase"])
 

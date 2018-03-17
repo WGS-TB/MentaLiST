@@ -2,12 +2,12 @@ using Bio.Seq: BioSequence, DNASequence, DNAAlphabet, DNAKmer, canonical, FASTAS
 using DataStructures: DefaultDict, OrderedDict
 using FastaIO
 using OpenGene: fastq_open, fastq_read
+using TextWrap: wrap
 import JLD: load, save
-
 ### Main calling function:
 function run_calling_pipeline(args)
   # get samples/fastq files from command line parameters:
-  sample_files = build_sample_files(args["multiple_samples_file"], args["1"], args["2"])
+  sample_files = build_sample_files(args["sample_input_file"], args["1"], args["2"])
 
   # check if DB and fastq files exist:
   check_files([args["db"];[fastq for fq_files in values(sample_files) for fastq in fq_files]])
@@ -364,13 +364,41 @@ function write_calls(sample_results, loci, loci2alleles, filename, profile, outp
       end
     end
   end
-  # write novel alleles:
+  # write novel alleles
+  # seen_novel = DefaultDict{String, Set{String}}(() -> Set{String}()) # locus to set of seen novel sequences
+  times_seen = DefaultDict{String, Int}(0) # times that a novel DNA sequence was seen; (DNA -> count)
+  novel_id = Dict{String, Int}() # novel id of a DNA seq (DNA -> id)
+  current_novel_id = DefaultDict{String, Int}(0) # current novel id for a given locus. (locus -> current_id)
+  novel_to_fasta = []
+  open("$filename.novel.txt", "w") do text
+    write(text, "Sample\tLocus\tNovel_id\tMinKmerDepth\tNmut\tDesc\n")
+    for (sample, allele_calls, voting_result) in sample_results
+      novel_alleles = [(locus, call.novel_allele) for (locus, call) in zip(loci, allele_calls) if call.novel_allele.template_allele != -1]
+      for (locus, novel_allele) in novel_alleles
+        mutation_desc = join([describe_mutation(ev) for ev in novel_allele.mutations_list], ", ")
+        # check if this novel was seen before:
+        if (times_seen[novel_allele.sequence] == 0)
+          current_novel_id[locus] += 1
+          push!(novel_to_fasta, (locus, novel_allele.sequence))
+        end
+        times_seen[novel_allele.sequence] += 1
+        novel_id[novel_allele.sequence] = current_novel_id[locus]
+        write(text, "$sample\t$locus\tN$(novel_id[novel_allele.sequence])\t$(novel_allele.depth)\t$(novel_allele.n_mutations)\tFrom allele $(novel_allele.template_allele), $mutation_desc.\n")
+      end
+    end
+  end
+  # now write the fasta:
+  open("$filename.novel.fa", "w") do f
+    for (locus, seq) in novel_to_fasta
+      desc = "Seen in $(times_seen[seq]) sample$(times_seen[seq] > 1 ? "s": "")"
+      write(f, ">$(locus)_N$(novel_id[seq]) $desc.\n$(wrap(seq, width=120))\n")
+    end
+  end
+
   # TODO: with multiple samples, we have to check how many
   # novel_alleles = [(locus, call.novel_allele) for (locus, call) in zip(loci, allele_calls) if call.novel_allele.template_allele != -1]
   # if length(novel_alleles) > 0
   #   open("$filename.novel.fa", "w") do fasta
-  #     open("$filename.novel.txt", "w") do text
-  #       write(text, "Loci\tMinKmerDepth\tNmut\tDesc\n")
   #       for (locus, novel_allele) in novel_alleles
   #         write(fasta, ">$locus\n$(novel_allele.sequence)\n")
   #         mutation_desc = join([describe_mutation(ev) for ev in novel_allele.mutations_list], ", ")
@@ -711,43 +739,46 @@ end
 ### input file helper calling_functions
 
 function build_sample_files(input_file, forward_files, reverse_files)
+  # First, sanity checks
+  # at least one input option:
   if all([x == nothing for x in [input_file, forward_files, reverse_files]])
-    error("You must give at least one input file using the parameters -m, --1 and/or --2.")
+    exit_error("Please give at least one input file using the parameters -m, --1 and/or --2.")
   end
-  if reverse_files == nothing # single files only
-    return Dict(remove_fastq_ext(fw_file) => [fw_file] for fw_file in forward_files)
+  #
+  if length(reverse_files)>0 && length(forward_files) != length(reverse_files)
+    exit_error("Forward and reverse input file does not match, got $(length(forward_files)) forward and $(length(reverse_files)) reverse.")
   end
-  if length(forward_files) != length(reverse_files)
-    error("Forward and reverse input file does not match, got $(length(forward_files)) forward and $(length(reverse_files)) reverse.")
+
+  # Create an ordered dict to get all samples. Combinations of -m and -1,-2 are allowed.
+  sample_files = OrderedDict{String, Vector{String}}()
+  # Check
+  if input_file != nothing
+      check_files([input_file])
+      open(input_file) do f
+        for ln in eachline(f)
+          sample, fastq = split(strip(ln))
+          if !haskey(sample_files, sample)
+            sample_files[sample] = String[]
+          end
+          push!(sample_files[sample], fastq)
+        end
+      end
+  end
+  if length(reverse_files) == 0 # single files only
+    for fw_file in forward_files
+      sample_files[remove_fastq_ext(fw_file)] = [fw_file]
+    end
   end
   # build sample files for fw and rev:
-  sample_files = OrderedDict{String, Vector{String}}()
   for (fw, rev) in zip(forward_files, reverse_files)
-    sample = lcp([fw,rev])
-    if sample == ""
-      error("No match between forward and reverse files $fw and $bw, please check the input options --1 and --2.")
+    sample = lcp([fw,rev]) # largest common prefix, removing special symbols at the end, will be the name of the sample.
+    if sample == "" # if empty, fastq names dont match, probably wrong pairing.
+      exit_error("No match between forward and reverse files $fw and $bw, please check the input options --1 and --2.")
     end
     sample_files[sample] = [fw,rev]
   end
   return sample_files
 end
-# build inputs, checking if multiple samples or simple:
-# sample_files = OrderedDict{String, Vector{String}}()
-# if (args["multiple_samples_file"] != nothing) # multiple samples, build dict from file:
-#     sample_file = args["multiple_samples_file"]
-#     check_files([sample_file])
-#     open(sample_file) do f
-#       for ln in eachline(f)
-#         sample, fastq = split(strip(ln))
-#         if !haskey(sample_files, sample)
-#           sample_files[sample] = String[]
-#         end
-#         push!(sample_files[sample], fastq)
-#       end
-#     end
-# else
-#   sample_files[args["s"]] = args["files"]
-# end
 
 # longest common prefix
 function lcp(str::Vector{String})
