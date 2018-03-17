@@ -42,7 +42,7 @@ TMPDIR = mktempdir()
 
   @testset "build_l_pneumophila_db" begin
     K::Int8 = 31
-    results, loci = kmer_class_for_each_locus(K, l_pneumophila_cgmlst_loci_files, true)
+    results, loci = kmer_class_for_each_locus(K, l_pneumophila_cgmlst_loci_files)
     @test typeof(results) == Vector{Tuple{Dict{UInt64,Vector{Int16}},Vector{Int16},Dict{UInt64,Int64}}}
     @test typeof(loci) == Vector{String}
 
@@ -65,7 +65,7 @@ TMPDIR = mktempdir()
 
   @testset "build_c_jejuni_db" begin
     K::Int8 = 31
-    results, loci = kmer_class_for_each_locus(K, c_jejuni_pubmlst_loci_files, true)
+    results, loci = kmer_class_for_each_locus(K, c_jejuni_pubmlst_loci_files)
     @test typeof(results) == Vector{Tuple{Dict{UInt64,Vector{Int16}},Vector{Int16},Dict{UInt64,Int64}}}
     @test typeof(loci) == Vector{String}
 
@@ -132,7 +132,7 @@ TMPDIR = mktempdir()
     @test allele_calls[662].allele == "N" # novel_allele
     @test allele_calls[536].allele == "1"
     @test allele_calls[536].flag == "+" # multiple alleles possible
-    @test allele_calls[652].allele == "1" 
+    @test allele_calls[652].allele == "1"
     @test allele_calls[652].flag == "+" # multiple alleles possible
   end
 
@@ -162,13 +162,13 @@ TMPDIR = mktempdir()
     @test loci_votes[2] == 50749
     @test loci_votes[3] == 59954
     @test loci_votes[4] == 56228
-    @test loci_votes[5] == 37141
+    @test loci_votes[5] == 37139
     @test loci_votes[6] == 51210
     @test loci_votes[7] == 66318
 
     @test votes[7][288] == 25296
     @test votes[7][306] == 29743
-    @test votes[7][520] == -22520
+    @test votes[7][520] == -21226
     @test votes[4][306] == 30272
     @test votes[4][29] == 12154
     @test votes[4][413] == -20054
