@@ -147,31 +147,31 @@ TMPDIR = mktempdir()
     kmer_count = count_kmers(DNAKmer{k}, [c_jejuni_fastq_file])
 
     # test kmer counts:
-    @test kmer_count[DNAKmer{k}("TCATTTAAGGACTTTTCAGTGATTAAAATCA")] == 51
-    @test kmer_count[DNAKmer{k}("CACTCCAATTTTTTCAAATAAAGTAGCTAAG")] == 47
-    @test kmer_count[DNAKmer{k}("ATTCTTTTACTCCTATTATCGGTTATACTAA")] == 33
-    @test kmer_count[DNAKmer{k}("GAAAAAAGTAATCCAAGGTGCGCAAAAAGCA")] == 93
-    @test kmer_count[DNAKmer{k}("AAATATAGTCAATAAATTATAAAAAAAACTT")] == 1
+    @test kmer_count[DNAKmer{k}("TCATTTAAGGACTTTTCAGTGATTAAAATCA")] == 2
+    @test kmer_count[DNAKmer{k}("CACTCCAATTTTTTCAAATAAAGTAGCTAAG")] == 0
+    @test kmer_count[DNAKmer{k}("ATTCTTTTACTCCTATTATCGGTTATACTAA")] == 0
+    @test kmer_count[DNAKmer{k}("GAAAAAAGTAATCCAAGGTGCGCAAAAAGCA")] == 4
+    @test kmer_count[DNAKmer{k}("AAATATAGTCAATAAATTATAAAAAAAACTT")] == 0
 
     # call:
     votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
     @test typeof(votes) == Dict{Int16,Dict{Int16,Int64}}
     @test typeof(loci_votes) == DataStructures.DefaultDict{Int16,Int64,Int64}
 
-    @test loci_votes[1] == 69339
-    @test loci_votes[2] == 50749
-    @test loci_votes[3] == 59954
-    @test loci_votes[4] == 56228
-    @test loci_votes[5] == 37139
-    @test loci_votes[6] == 51210
-    @test loci_votes[7] == 66318
+    @test loci_votes[1] == 3554
+    @test loci_votes[2] == 2065
+    @test loci_votes[3] == 1434
+    @test loci_votes[4] == 2448
+    @test loci_votes[5] == 1683
+    @test loci_votes[6] == 3073
+    @test loci_votes[7] == 1246
 
-    @test votes[7][288] == 25296
-    @test votes[7][306] == 29743
-    @test votes[7][520] == -21226
-    @test votes[4][306] == 30272
-    @test votes[4][29] == 12154
-    @test votes[4][413] == -20054
+    @test votes[7][288] == 485
+    @test votes[7][306] == 440
+    @test votes[7][520] == -551
+    @test votes[4][306] == 1539
+    @test votes[4][29] == 484
+    @test votes[4][413] == -769
 
     # some parameters:
     kmer_thr, max_mutations, output_votes = 2, 5, true
