@@ -15,7 +15,7 @@ TMPDIR = mktempdir()
 
   c_jejuni_pubmlst_dir = string(TMPDIR, "/", "c_jejuni_pubmlst")
   c_jejuni_pubmlst_db_file = string(TMPDIR, "/", "c_jejuni_pubmlst_31.db")
-  c_jejuni_fastq_file = string("../data/SRR5824107.fastq.gz")
+  c_jejuni_fastq_file = string("../data/SRR5824107_small.fastq.gz")
   l_pneumophila_cgmlst_dir = string(TMPDIR, "/", "l_pneumophila_cgmlst")
   l_pneumophila_cgmlst_db_file = string(TMPDIR,"/", "l_pneumophila_cgmlst_31.db")
   l_pneumophila_fastq_file = string("../data/SRR801793.fastq.gz")
