@@ -11,7 +11,7 @@ function run_calling_pipeline(args)
 
   # check if DB and fastq files exist:
   check_files([args["db"];[fastq for fq_files in values(sample_files) for fastq in fq_files]])
-  db_path = dirname(args["db"])
+
   # array for saving each sample result:
   sample_results = []
   info("Opening kmer database ... ")
@@ -19,6 +19,10 @@ function run_calling_pipeline(args)
   # prepend base path of the kmer database on to the relative paths for allele fasta files stored in the db
   for (index, file) in enumerate(build_args["fasta_files"])
     build_args["fasta_files"][index] = dirname(args["db"]) * "/" * file
+  end
+  # check if scheme fasta files exist
+  for fasta_file in build_args["fasta_files"]
+    check_files(fasta_file)
   end
   # process each sample:
   for (sample, fq_files) in sample_files
