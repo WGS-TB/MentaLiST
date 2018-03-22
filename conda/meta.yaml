@@ -1,5 +1,5 @@
 {% set name = "MentaLiST" %}
-{% set version = "0.2.0" %}
+{% set version = "0.2.1" %}
 
 package:
   name: {{ name|lower }}
@@ -10,16 +10,16 @@ source:
   url: https://github.com/WGS-TB/MentaLiST/archive/v{{ version }}.tar.gz
 
 build:
-  number: 0
+  number: 2
   skip: True  # [osx]
 
 requirements:
   build:
-    - julia 0.5.2
+    - julia 0.6.1
     - hdf5
     - mpfr
   run:
-    - julia 0.5.2
+    - julia 0.6.1
     - hdf5
     - mpfr
 
