@@ -2,7 +2,7 @@
 using Lumberjack
 using ArgParse
 
-VERSION = "0.2.3"
+VERSION = "0.2.2"
 function parse_commandline()
     s = ArgParseSettings()
     s.epilog = "MentaLiST -- The MLST pipeline developed by the PathOGiST research group. https://github.com/WGS-TB/MentaLiST\n" *
@@ -230,6 +230,9 @@ function build_db(args)
   info("Combining results for each locus ...")
   kmer_classification = combine_loci_classification(k, results, loci)
 
+  for (index, fasta_file) in enumerate(args["fasta_files"])
+    args["fasta_files"][index] = pop!(split(dirname(fasta_file), "/")) * "/" * basename(fasta_file)
+  end
   info("Saving DB ...")
   save_db(k, kmer_classification, loci, db_file, profile, args)
   info("Done!")
