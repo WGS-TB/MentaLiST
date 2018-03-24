@@ -2,7 +2,7 @@
 using Lumberjack
 using ArgParse
 
-VERSION = "0.2.3"
+VERSION = "0.2.2"
 function parse_commandline()
     s = ArgParseSettings()
     s.epilog = "MentaLiST -- The MLST pipeline developed by the PathOGiST research group. https://github.com/WGS-TB/MentaLiST\n" *
