@@ -10,6 +10,10 @@
     call
     -o '$output_file'
     --db '$kmer_db.fields.path'
+    --mutation_threshold '$mutation_threshold'
+    --kt '$kmer_threshold'
+    $output_votes
+    $output_special
     #if $input_type.sPaired == "paired":
        -s $input_type.pInput1.name $input_type.pInput1 $input_type.pInput2
     #elif $input_type.sPaired == "collections":
@@ -35,9 +39,23 @@
 	<validator type="no_options" message="No MentaLiST databases are available" />
       </options>
     </param>
+    <param name="mutation_threshold" type="integer" label="Mutation threshold"
+	   help="Maximum number of mutations when looking for novel alleles."
+	   value="6" min="1" max="25" />
+    <param name="kmer_threshold" type="integer" label="Kmer threshold"
+	   help="Minimum number of times a kmer is seen to be considered present in the sample."
+	   value="10" min="1" max="25" />
+    <parapm name="output_votes" type="boolean" label="Output votes"
+	    argument="--output_votes" truevalue="--output_votes" falsevalue=""
+	    help="Outputs the results for the original voting algorithm" />
+    <param name="output_special" type="boolean" label="Output special"
+	   argument="--output_special" truevalue="--output_special" falsevalue=""
+	   help="Outputs a fasta file with the alleles from special cases such as incomplete coverage, novel and multiple alleles." />
+
   </inputs>
   <outputs>
-    <data name="output_file" format="tabular"/>
+    <data name="output_file" format="tabular" />
+    <data name="coverage_file" format="tabular" />
   </outputs>
   <help><![CDATA[
   ]]></help>
