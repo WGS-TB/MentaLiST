@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<tool id="mentalist_download_pubmlst" name="MentaLiST Download from pubMLST" tool_type="manage_data" version="master">
+<tool id="mentalist_download_pubmlst" name="MentaLiST Download from pubMLST" tool_type="manage_data" version="0.2.1">
   <requirements>
-    <requirement type="package" version="master">mentalist</requirement>
+    <requirement type="package" version="0.2.1">mentalist</requirement>
   </requirements>
   <command detect_errors="exit_code">
     <![CDATA[
@@ -76,6 +76,7 @@
       <option value="Helicobacter pylori">Helicobacter pylori</option>
       <option value="Helicobacter suis">Helicobacter suis</option>
       <option value="Kingella kingae">Kingella kingae</option>
+      <option value="Klebsiella aerogenes">Klebsiella aerogenes</option>
       <option value="Klebsiella oxytoca">Klebsiella oxytoca</option>
       <option value="Klebsiella pneumoniae">Klebsiella pneumoniae</option>
       <option value="Kudoa septempunctata">Kudoa septempunctata</option>

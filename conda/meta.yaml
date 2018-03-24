@@ -6,11 +6,10 @@ package:
   version: {{ version }}
 
 source:
-  fn: {{ name|lower }}-{{ version }}.tar.gz
-  url: https://github.com/WGS-TB/MentaLiST/archive/v{{ version }}.tar.gz
-
+  git_url: https://github.com/WGS-TB/MentaLiST.git
+  git_rev: v0.2.1
+    
 build:
-  number: 2
   skip: True  # [osx]
 
 requirements:
@@ -18,10 +17,12 @@ requirements:
     - julia 0.6.1
     - hdf5
     - mpfr
+    - libxml2
   run:
     - julia 0.6.1
     - hdf5
     - mpfr
+    - libxml2
 
 test:
   commands:
