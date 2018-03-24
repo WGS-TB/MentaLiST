@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<tool id="mentalist_build_db" name="MentaLiST Build DB" tool_type="manage_data" version="master">
+<tool id="mentalist_build_db" name="MentaLiST Build DB" tool_type="manage_data" version="0.2.1">
   <requirements>
-    <requirement type="package" version="master">mentalist</requirement>
+    <requirement type="package" version="0.2.1">mentalist</requirement>
   </requirements>
   <command detect_errors="exit_code">
   <![CDATA[
