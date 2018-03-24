@@ -18,12 +18,10 @@ function run_calling_pipeline(args)
 
   # prepend base path of the kmer database on to the relative paths for allele fasta files stored in the db
   for (index, file) in enumerate(build_args["fasta_files"])
-    build_args["fasta_files"][index] = dirname(args["db"]) * "/" * file
+    build_args["fasta_files"][index] = joinpath(dirname(args["db"]), file)
   end
   # check if scheme fasta files exist
-  for fasta_file in build_args["fasta_files"]
-    check_files(fasta_file)
-  end
+  check_files(build_args["fasta_files"])
   # process each sample:
   for (sample, fq_files) in sample_files
     info("Sample: $sample. Opening fastq file(s) and counting kmers ... ")
