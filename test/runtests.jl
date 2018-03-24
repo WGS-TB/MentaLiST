@@ -15,6 +15,7 @@ TMPDIR = mktempdir()
 
   c_jejuni_pubmlst_dir = string(TMPDIR, "/", "c_jejuni_pubmlst")
   c_jejuni_pubmlst_db_file = string(TMPDIR, "/", "c_jejuni_pubmlst_31.db")
+  c_jejuni_pubmlst_copy_dir = string(TMPDIR, "/", "c_jejuni_pubmlst_copy")
   c_jejuni_fastq_file = string("../data/SRR5824107_small.fastq.gz")
   l_pneumophila_cgmlst_dir = string(TMPDIR, "/", "l_pneumophila_cgmlst")
   l_pneumophila_cgmlst_db_file = string(TMPDIR,"/", "l_pneumophila_cgmlst_31.db")
@@ -139,6 +140,54 @@ TMPDIR = mktempdir()
   @testset "call_c_jejuni" begin
     # open the db:
     kmer_db, loci, loci2alleles, k, profile, build_args = open_db(c_jejuni_pubmlst_db_file)
+    @test typeof(kmer_db) == Dict{Bio.Seq.Kmer{Bio.Seq.DNANucleotide,31},Vector{Tuple{Int16,Int16,Vector{Int16}}}}
+    @test typeof(loci) == Vector{String}
+    @test typeof(loci2alleles) == Dict{Int16,Vector{Int16}}
+
+    # count kmers:
+    kmer_count = count_kmers(DNAKmer{k}, [c_jejuni_fastq_file])
+
+    # test kmer counts:
+    @test kmer_count[DNAKmer{k}("TCATTTAAGGACTTTTCAGTGATTAAAATCA")] == 2
+    @test kmer_count[DNAKmer{k}("CACTCCAATTTTTTCAAATAAAGTAGCTAAG")] == 0
+    @test kmer_count[DNAKmer{k}("ATTCTTTTACTCCTATTATCGGTTATACTAA")] == 0
+    @test kmer_count[DNAKmer{k}("GAAAAAAGTAATCCAAGGTGCGCAAAAAGCA")] == 4
+    @test kmer_count[DNAKmer{k}("AAATATAGTCAATAAATTATAAAAAAAACTT")] == 0
+
+    # call:
+    votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
+    @test typeof(votes) == Dict{Int16,Dict{Int16,Int64}}
+    @test typeof(loci_votes) == DataStructures.DefaultDict{Int16,Int64,Int64}
+
+    @test loci_votes[1] == 3554
+    @test loci_votes[2] == 2065
+    @test loci_votes[3] == 1434
+    @test loci_votes[4] == 2448
+    @test loci_votes[5] == 1683
+    @test loci_votes[6] == 3073
+    @test loci_votes[7] == 1246
+
+    @test votes[7][288] == 485
+    @test votes[7][306] == 440
+    @test votes[7][520] == -551
+    @test votes[4][306] == 1539
+    @test votes[4][29] == 484
+    @test votes[4][413] == -769
+
+    # some parameters:
+    kmer_thr, max_mutations, output_votes = 2, 5, true
+    # call:
+    allele_calls, voting_result = call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, c_jejuni_pubmlst_loci_files, kmer_thr, max_mutations, output_votes)
+    @test typeof(allele_calls) == Vector{AlleleCall}
+    @test [ac.allele for ac in allele_calls] == ["2", "17", "2", "3", "2", "1", "5"]
+  end
+
+  @testset "call_c_jejuni_after_moving_db" begin
+    mkdir(c_jejuni_pubmlst_copy_dir)
+    cp(c_jejuni_pubmlst_db_file, string(c_jejuni_pubmlst_copy_dir, "/", basename(c_jejuni_pubmlst_db_file)))
+    cp(c_jejuni_pubmlst_dir, string(c_jejuni_pubmlst_copy_dir, "/", basename(c_jejuni_pubmlst_dir)))
+    # open the db:
+    kmer_db, loci, loci2alleles, k, profile, build_args = open_db(string(dirname(c_jejuni_pubmlst_copy_dir), "/", basename(c_jejuni_pubmlst_db_file)))
     @test typeof(kmer_db) == Dict{Bio.Seq.Kmer{Bio.Seq.DNANucleotide,31},Vector{Tuple{Int16,Int16,Vector{Int16}}}}
     @test typeof(loci) == Vector{String}
     @test typeof(loci2alleles) == Dict{Int16,Vector{Int16}}
