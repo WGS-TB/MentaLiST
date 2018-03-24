@@ -230,6 +230,9 @@ function build_db(args)
   info("Combining results for each locus ...")
   kmer_classification = combine_loci_classification(k, results, loci)
 
+  for (index, fasta_file) in enumerate(args["fasta_files"])
+    args["fasta_files"][index] = pop!(split(dirname(fasta_file), "/")) * "/" * basename(fasta_file)
+  end
   info("Saving DB ...")
   save_db(k, kmer_classification, loci, db_file, profile, args)
   info("Done!")
