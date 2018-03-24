@@ -1,10 +1,15 @@
 #!/usr/bin/env julia
-
 using Lumberjack
 using ArgParse
 
+VERSION = "0.2.3"
 function parse_commandline()
     s = ArgParseSettings()
+    s.epilog = "MentaLiST -- The MLST pipeline developed by the PathOGiST research group. https://github.com/WGS-TB/MentaLiST\n" *
+      "To cite: Feijao P, Yao H, Fornika D, Gardy J, Hsiao W, Chauve C, Chindelevitch L. 10/01/2018. Microbial Genomics 4(2): doi:10.1099/mgen.0.000146\n"
+    s.version = "MentaLiST $VERSION."
+    s.allow_ambiguous_opts= true # to allow -1 and -2.
+    s.preformatted_epilog = true
     @add_arg_table s begin
       "call"
         help = "MLST caller, given a sample and a k-mer database."
@@ -27,16 +32,22 @@ function parse_commandline()
       "download_enterobase"
           help = "Dowload a MLST scheme from Enterobase (enterobase.warwick.ac.uk) and build a MLST k-mer database."
           action = :command
+      "-v", "--version"
+          action = :show_version
+          help = "show version information and exit"
+      end
 
-    end
     # Calling MLST options:
+    s["call"].preformatted_epilog = true
+    s["call"].epilog = "MentaLiST MLST calling function. Calls alleles on a given MLST database.\n" *
+      "You can create a custom DB with 'create_db' or other MentaLiST functions that download schemes from pubmlst, cgmlst.org or Enterobase.\n\n" *
+      "Examples:\n" *
+      "mentalist call -o my_sample.mlst --db my_scheme.db -1 sample_1.fastq.gz -2 sample_2.fastq.gz # one paired-end sample.\n" *
+      "mentalist call -o all_samples.mlst --db my_scheme.db -1 *.fastq.gz -2 *.fastq.gz # multiple paired-end samples."
+
     @add_arg_table s["call"] begin
         "-o"
           help = "Output file with MLST call"
-          arg_type = String
-          required = true
-        "-s"
-          help = "Sample name"
           arg_type = String
           required = true
         "--db"
@@ -44,35 +55,51 @@ function parse_commandline()
           required = true
           arg_type = String
         "-t", "--mutation_threshold"
-          help = "Maximum edit distance (number of mutations) when looking for novel alleles."
+          help = "Maximum number of mutations when looking for novel alleles."
           arg_type = Int
           default = 6
         "--kt"
-          help = "Minimum # of times a kmer is seen, to be considered 'solid', meaning actually present in the sample."
+          help = "Minimum # of times a kmer is seen to be considered present in the sample (solid)."
           arg_type = Int
           default = 10
         "--output_votes"
-          help = "Also outputs the results for the original voting algorithm, without novel."
+          help = "Outputs the results for the original voting algorithm."
           action = :store_true
         "--output_special"
-          help = "Also outputs a FASTA file with the alleles from special cases such as incomplete coverage, novel, and multiple alleles. This can help for creating a smaller MentaLiST database for testing different parameters or for using a read mapper to investigate the special cases more thoroughly. "
+          help = "Outputs a FASTA file with the alleles from 'special cases' such as incomplete coverage, novel, and multiple alleles. "
           action = :store_true
-        "files"
+        "-i", "--sample_input_file"
+          help = "Input TXT file for multiple samples. First column has the sample name, second the FASTQ file. Repeat the sample name for samples with more than one file (paired reads, f.i.)"
+        "-1"
           nargs = '*'
-          help = "FastQ input files"
-          required = true
+          help = "FastQ input files, one per sample, forward reads (or unpaired reads)."
+          arg_type = String
+        "-2"
+          nargs = '*'
+          help = "FastQ input files, one per sample, reverse reads."
           arg_type = String
     end
+
+    ## Common option for all db building commands:
+    s_db = ArgParseSettings()
+    @add_arg_table s_db begin
+      "--db"
+        help = "Output file (kmer database)"
+        arg_type = String
+        required = true
+      "-k"
+        help = "Kmer size"
+        required = true
+        arg_type = Int8
+      "--threads"
+        arg_type = Int
+        default = 2
+        help = "Number of threads used in parallel."
+    end
+
     # Build DB from FASTA, options:
+    import_settings(s["build_db"], s_db)
     @add_arg_table s["build_db"] begin
-        "--db"
-          help = "Output file (kmer database)"
-          arg_type = String
-          required = true
-        "-k"
-          help = "Kmer size"
-          required = true
-          arg_type = Int8
         "-f", "--fasta_files"
             nargs = '+'
             arg_type = String
@@ -81,83 +108,47 @@ function parse_commandline()
         "-p", "--profile"
             arg_type = String
             help = "Profile file for known genotypes."
-        "-c", "--disable_compression"
-          help = "Disables the default compression of the database, that stores only the most informative kmers. Not recommended unless for debugging."
-          action = :store_true
-        "--threads"
-          arg_type = Int
-          default = 2
-          help = "Number of threads used in parallel."
     end
-    @add_arg_table s["list_pubmlst"] begin
+
+    # Listing functions, common options:
+    s_list = ArgParseSettings()
+    @add_arg_table s_list begin
       "-p", "--prefix"
-      help = "Only list schemes that starts with this prefix."
+      help = "Only list schemes where the species name starts with this prefix."
       arg_type = String
     end
 
-    @add_arg_table s["list_cgmlst"] begin
-      "-p", "--prefix"
-      help = "Only list schemes that start with this prefix."
-      arg_type = String
-    end
+    # List pubmlst
+    import_settings(s["list_pubmlst"], s_list)
 
-    @add_arg_table s["download_pubmlst"] begin
+    # List cgmlst
+    import_settings(s["list_cgmlst"], s_list)
+
+    # Common options for MLST download functions:
+    s_db_download = ArgParseSettings()
+    import_settings(s_db_download, s_db) # import build_db common options
+    @add_arg_table s_db_download begin
       "-o", "--output"
-        help = "Output folder for the scheme files."
+        help = "Output folder for the scheme Fasta files."
         arg_type = String
         required = true
       "-s", "--scheme"
-        help = "Species name or ID of the scheme."
+        help = "Species name or scheme ID."
         arg_type = String
         required = true
-      "-k"
-        help = "K-mer size"
-        required = true
-        arg_type = Int8
-      "--db"
-        help = "Output file for the kmer database."
-        arg_type = String
-        required = true
-      "-c", "--disable_compression"
-        help = "Disables the default compression of the database, that stores only the most informative kmers. Not recommended unless for debugging."
-        action = :store_true
-      "--threads"
-        arg_type = Int
-        default = 2
-        help = "Number of threads used in parallel."
     end
 
-    @add_arg_table s["download_cgmlst"] begin
-      "-o", "--output"
-        help = "Output folder for the scheme files."
-        arg_type = String
-        required = true
-      "-s", "--scheme"
-        help = "Species name or ID of the scheme"
-        arg_type = String
-        required = true
-      "-k"
-        help = "K-mer size"
-        required = true
-        arg_type = Int8
-      "--db"
-        help = "Output file for the kmer database."
-        arg_type = String
-        required = true
-      "-c", "--disable_compression"
-        help = "Disables the default compression of the database, that stores only the most informative kmers. Not recommended unless for debugging."
-        action = :store_true
-      "--threads"
-        arg_type = Int
-        default = 2
-        help = "Number of threads used in parallel."
-    end
+    # Download pubmlst:
+    import_settings(s["download_pubmlst"], s_db_download) # import common options
 
+    # Download cgmlst:
+    import_settings(s["download_cgmlst"], s_db_download)  # import common options
+
+    # Download enterobase:
+    import_settings(s["download_enterobase"], s_db_download) # import common options
+    # add (and override) specific enterobase options:
+    s["download_enterobase"].error_on_conflict = false  # do not error-out when trying to override an option
     @add_arg_table s["download_enterobase"] begin
-      "-o", "--output"
-        help = "Output folder for the scheme files."
-        arg_type = String
-        required = true
       "-s", "--scheme"
         help = "Letter identifying which scheme: (S)almonella, (Y)ersinia, or (E)scherichia/Shigella."
         arg_type = String
@@ -166,21 +157,6 @@ function parse_commandline()
         help = "Choose the type: 'cg' or 'wg' for cgMLST or wgMLST scheme, respectively."
         arg_type = String
         required = true
-      "-k"
-        help = "K-mer size"
-        required = true
-        arg_type = Int8
-      "--db"
-        help = "Output file for the kmer database."
-        arg_type = String
-        required = true
-      "-c", "--disable_compression"
-        help = "Disables the default compression of the database, that stores only the most informative kmers. Not recommended unless for debugging."
-        action = :store_true
-      "--threads"
-        arg_type = Int
-        default = 2
-        help = "Number of threads used in parallel."
     end
 
     return parse_args(s)
@@ -190,38 +166,30 @@ end
 function check_files(files)
   dont_exist = [file for file in files if !isfile(file)]
   if length(dont_exist) > 0
-    Lumberjack.warn("The following input file(s) could not be found: $(join(dont_exist,',')), aborting ...")
-    exit(-1)
+    exit_error("The following input file(s) could not be found: $(join(dont_exist,',')).")
   end
+end
+
+### Error FUNCTIONS
+function exit_error(msg)
+  try
+    Lumberjack.error(msg)
+  catch
+    println("exiting ...")
+  end
+  exit(-1)
 end
 
 #### Main COMMAND functions:
 function call_mlst(args)
-  # include("calling_functions.jl")
-  # check if the files exist:
-  check_files([args["db"];args["files"]])
-  info("Opening kmer database ... ")
-  kmer_db, loci, loci2alleles, k, profile, build_args = open_db(args["db"])
-
-  info("Opening fastq file(s) and counting kmers ... ")
-  kmer_count = count_kmers(DNAKmer{k}, args["files"])
-  info("Voting for alleles ... ")
-  votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
-  info("Calling alleles and novel alleles ...")
-  allele_calls, voting_result = call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], args["kt"], args["mutation_threshold"], args["output_votes"])
-  info("Writing output ...")
-  write_calls(loci2alleles, allele_calls, loci, voting_result, args["s"], args["o"], profile, args["output_special"])
-
-  info("Done.")
+  run_calling_pipeline(args)
 end
 
 function list_pubmlst(args)
-  # include("mlst_download_functions.jl")
   list_pubmlst_schema(args["prefix"])
 end
 
 function download_pubmlst(args)
-  # include("mlst_download_functions.jl")
   loci_files, profile_file = download_pubmlst_scheme(args["scheme"], args["output"])
   info("Building the k-mer database ...")
   args["fasta_files"] = loci_files
@@ -230,12 +198,10 @@ function download_pubmlst(args)
 end
 
 function list_cgmlst(args)
-  # include("mlst_download_functions.jl")
   list_cgmlst_schema(args["prefix"])
 end
 
 function download_cgmlst(args)
-  # include("mlst_download_functions.jl")
   loci_files = download_cgmlst_scheme(args["scheme"], args["output"])
   info("Building the k-mer database ...")
   args["fasta_files"] = loci_files
@@ -244,7 +210,6 @@ function download_cgmlst(args)
 end
 
 function download_enterobase(args)
-  # include("mlst_download_functions.jl")
   loci_files = download_enterobase_scheme(args["scheme"], args["type"], args["output"])
   info("Building the k-mer database ...")
   args["fasta_files"] = loci_files
@@ -253,19 +218,14 @@ function download_enterobase(args)
 end
 
 function build_db(args)
-  # parallel: number of processors.
-  # addprocs(args["threads"])
-  # include("build_db_functions.jl")
   # check if files exist:
   check_files(args["fasta_files"])
-  # converto to absolute path:
-  args["fasta_files"] = [abspath(f) for f in args["fasta_files"]]
   # get arguments and call the kmer db builder for each locus:
   k::Int8 = args["k"]
   db_file = args["db"]
   profile = args["profile"]
   info("Opening FASTA files ... ")
-  results, loci = kmer_class_for_each_locus(k, args["fasta_files"], !args["disable_compression"])
+  results, loci = kmer_class_for_each_locus(k, args["fasta_files"])
   # Combine results:
   info("Combining results for each locus ...")
   kmer_classification = combine_loci_classification(k, results, loci)
@@ -308,8 +268,8 @@ elseif args["%COMMAND%"] == "download_cgmlst"
   download_cgmlst(args["download_cgmlst"])
 
 elseif args["%COMMAND%"] == "download_enterobase"
-  include("mlst_download_functions.jl")
   addprocs(args["download_enterobase"]["threads"])
+  include("mlst_download_functions.jl")
   include("build_db_functions.jl")
   download_enterobase(args["download_enterobase"])
 
