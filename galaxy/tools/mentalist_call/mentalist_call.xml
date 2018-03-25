@@ -15,9 +15,9 @@
     $output_votes
     $output_special
     #if $input_type.sPaired == "paired":
-       -s $input_type.pInput1.name -1 $input_type.pInput1 -2 $input_type.pInput2
+      -1 $input_type.pInput1 -2 $input_type.pInput2
     #elif $input_type.sPaired == "collections":
-       -s $input_type.fastq_collection.name -1 $input_type.fastq_collection.forward -2 $input_type.fastq_collection.reverse
+      -1 $input_type.fastq_collection.forward -2 $input_type.fastq_collection.reverse
     #end if
   ]]></command>
   <inputs>
