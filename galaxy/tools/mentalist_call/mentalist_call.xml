@@ -15,9 +15,9 @@
     $output_votes
     $output_special
     #if $input_type.sPaired == "paired":
-       -s $input_type.pInput1.name $input_type.pInput1 $input_type.pInput2
+       -s $input_type.pInput1.name -1 $input_type.pInput1 -2 $input_type.pInput2
     #elif $input_type.sPaired == "collections":
-       -s $input_type.fastq_collection.name $input_type.fastq_collection.forward $input_type.fastq_collection.reverse
+       -s $input_type.fastq_collection.name -1 $input_type.fastq_collection.forward -2 $input_type.fastq_collection.reverse
     #end if
   ]]></command>
   <inputs>
@@ -45,9 +45,9 @@
     <param name="kmer_threshold" type="integer" label="Kmer threshold"
 	   help="Minimum number of times a kmer is seen to be considered present in the sample."
 	   value="10" min="1" max="25" />
-    <parapm name="output_votes" type="boolean" label="Output votes"
-	    argument="--output_votes" truevalue="--output_votes" falsevalue=""
-	    help="Outputs the results for the original voting algorithm" />
+    <param name="output_votes" type="boolean" label="Output votes"
+	   argument="--output_votes" truevalue="--output_votes" falsevalue=""
+	   help="Outputs the results for the original voting algorithm" />
     <param name="output_special" type="boolean" label="Output special"
 	   argument="--output_special" truevalue="--output_special" falsevalue=""
 	   help="Outputs a fasta file with the alleles from special cases such as incomplete coverage, novel and multiple alleles." />
