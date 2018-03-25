@@ -51,7 +51,6 @@
     <param name="output_special" type="boolean" label="Output special"
 	   argument="--output_special" truevalue="--output_special" falsevalue=""
 	   help="Outputs a fasta file with the alleles from special cases such as incomplete coverage, novel and multiple alleles." />
-
   </inputs>
   <outputs>
     <data name="output_file" format="tabular" />
