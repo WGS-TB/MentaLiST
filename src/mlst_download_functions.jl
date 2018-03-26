@@ -189,40 +189,49 @@ function download_cgmlst_scheme(target_id, output_dir, overwrite=false)
   end
   info("Downloading cgMLST scheme ...")
   gzip_alleles = _download_to_folder("http://www.cgmlst.org/ncs/schema/$id/alleles",output_dir)
+  info("Value of gzip_alleles: $gzip_alleles")
   # unzip file to one FASTA per locus:
   loci_files = String[]
   current_fasta_fh = nothing
   locus = ""
   fh = GZip.open(gzip_alleles)
   info("Unzipping cgMLST scheme into individual FASTA files for each loci ...")
+  gzip_alleles_dirname = dirname(gzip_alleles)
+  run(`unzip -oq $gzip_alleles -d $gzip_alleles_dirname`)
+  rm(gzip_alleles)
   n_locus = 0
-  for l in eachline(fh)
-    # skip empty lines or "="
-    if length(strip(l)) == 0 || startswith(l, "=")
-      continue
+  scheme_files = readdir(gzip_alleles_dirname)
+  for scheme_file in scheme_files
+    for l in eachline(open(joinpath(gzip_alleles_dirname, scheme_file)))
+      info("fasta line: $l")
+      # skip empty lines or "="
+      if length(strip(l)) == 0 || startswith(l, "=")
+        continue
+      end
+      if startswith(l,"#")
+        # print to show progress:
+        if n_locus % 200 == 0
+          print(".")
+        end
+        n_locus += 1
+        locus = strip(l[2:end]) # remove the starting '#'
+        if current_fasta_fh != nothing
+          close(current_fasta_fh)
+        end
+        fasta = joinpath(output_dir, "$locus.fa")
+        push!(loci_files, fasta)
+        current_fasta_fh = open(fasta, "w")
+      elseif startswith(l,">")
+        # substitute the number only to locus_number
+        id = strip(l[2:end])
+        write(current_fasta_fh, ">$(locus)_$id\n")
+      else #
+        if current_fasta_fh != nothing
+          write(current_fasta_fh, "$l\n")
+        end
+      end
     end
-    if startswith(l,"#")
-      # print to show progress:
-      if n_locus % 200 == 0
-        print(".")
-      end
-      n_locus += 1
-      locus = strip(l[2:end]) # remove the starting '#'
-      if current_fasta_fh != nothing
-        close(current_fasta_fh)
-      end
-      fasta = joinpath(output_dir, "$locus.fa")
-      push!(loci_files, fasta)
-      current_fasta_fh = open(fasta, "w")
-    elseif startswith(l,">")
-      # substitute the number only to locus_number
-      id = strip(l[2:end])
-      write(current_fasta_fh, ">$(locus)_$id\n")
-    else #
-      if current_fasta_fh != nothing
-        write(current_fasta_fh, "$l\n")
-      end
-    end
+    close(scheme_file)
   end
   println()
   info("$n_locus loci found.")
