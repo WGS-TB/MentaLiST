@@ -23,6 +23,7 @@ requirements:
     - hdf5
     - mpfr
     - libxml2
+    - unzip
 
 test:
   commands:
