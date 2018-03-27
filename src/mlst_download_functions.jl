@@ -196,7 +196,7 @@ function download_cgmlst_scheme(target_id, output_dir)
   run(`unzip -oq $scheme_zip_file -d $scheme_dirname/tmp`)
   rm(scheme_zip_file)
   scheme_files = readdir(joinpath(scheme_dirname, "tmp"))
-  n_locus = 0
+
   for scheme_file in scheme_files
     # print to show progress:
     if length(locus_files) % 200 == 0
