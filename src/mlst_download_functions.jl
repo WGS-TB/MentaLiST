@@ -181,50 +181,48 @@ function download_enterobase_scheme(scheme, s_type, output_dir, overwrite=false)
   return loci_files
 end
 
-function download_cgmlst_scheme(target_id, output_dir, overwrite=false)
+function download_cgmlst_scheme(target_id, output_dir)
   id = _find_cgmlst_id(target_id)
   if id == nothing
     Lumberjack.warn("Id/species ($target_id) not found!")
     exit(-1)
   end
   info("Downloading cgMLST scheme ...")
-  gzip_alleles = _download_to_folder("http://www.cgmlst.org/ncs/schema/$id/alleles",output_dir)
-  # unzip file to one FASTA per locus:
-  loci_files = String[]
-  current_fasta_fh = nothing
+  scheme_zip_file = _download_to_folder("http://www.cgmlst.org/ncs/schema/$id/alleles", output_dir)
+  locus_files = String[]
   locus = ""
-  fh = GZip.open(gzip_alleles)
-  info("Unzipping cgMLST scheme into individual FASTA files for each loci ...")
-  n_locus = 0
-  for l in eachline(fh)
-    # skip empty lines or "="
-    if length(strip(l)) == 0 || startswith(l, "=")
-      continue
-    end
-    if startswith(l,"#")
-      # print to show progress:
-      if n_locus % 200 == 0
+  info("Unzipping cgMLST scheme into individual FASTA files for each locus ...")
+  scheme_dirname = dirname(scheme_zip_file)
+  run(`unzip -oq $scheme_zip_file -d $scheme_dirname/tmp`)
+  rm(scheme_zip_file)
+  scheme_files = readdir(joinpath(scheme_dirname, "tmp"))
+
+  for scheme_file in scheme_files
+    # print to show progress:
+    if length(locus_files) % 200 == 0
         print(".")
+    end
+    scheme_file_path = joinpath(scheme_dirname, scheme_file)
+    push!(locus_files, scheme_file_path)
+    # get locus ID from filename
+    locus = split(scheme_file, ".")[1]
+    fh = open(scheme_file_path, "w")
+    for l in eachline(joinpath(scheme_dirname, "tmp", scheme_file))
+      if length(strip(l)) == 0
+        continue
       end
-      n_locus += 1
-      locus = strip(l[2:end]) # remove the starting '#'
-      if current_fasta_fh != nothing
-        close(current_fasta_fh)
-      end
-      fasta = joinpath(output_dir, "$locus.fa")
-      push!(loci_files, fasta)
-      current_fasta_fh = open(fasta, "w")
-    elseif startswith(l,">")
-      # substitute the number only to locus_number
-      id = strip(l[2:end])
-      write(current_fasta_fh, ">$(locus)_$id\n")
-    else #
-      if current_fasta_fh != nothing
-        write(current_fasta_fh, "$l\n")
+      if l[1] == '>'
+        l = '>' * locus * "_" * l[2:end] * "\n"
+        write(fh, l)
+      else
+        write(fh, l * "\n")
       end
     end
+    close(fh)
   end
   println()
-  info("$n_locus loci found.")
-  return loci_files
+  total_loci = length(locus_files)
+  info("$total_loci loci found.")
+  rm(joinpath(scheme_dirname, "tmp"), recursive=true)
+  return locus_files
 end
