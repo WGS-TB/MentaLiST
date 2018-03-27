@@ -189,12 +189,10 @@ function download_cgmlst_scheme(target_id, output_dir)
   end
   info("Downloading cgMLST scheme ...")
   scheme_zip_file = _download_to_folder("http://www.cgmlst.org/ncs/schema/$id/alleles", output_dir)
-  # unzip file to one FASTA per locus:
   locus_files = String[]
   locus = ""
   info("Unzipping cgMLST scheme into individual FASTA files for each locus ...")
   scheme_dirname = dirname(scheme_zip_file)
-  # unzip 
   run(`unzip -oq $scheme_zip_file -d $scheme_dirname/tmp`)
   rm(scheme_zip_file)
   scheme_files = readdir(joinpath(scheme_dirname, "tmp"))
@@ -206,6 +204,7 @@ function download_cgmlst_scheme(target_id, output_dir)
     end
     scheme_file_path = joinpath(scheme_dirname, scheme_file)
     push!(locus_files, scheme_file_path)
+    # get locus ID from filename
     locus = split(scheme_file, ".")[1]
     fh = open(scheme_file_path, "w")
     for l in eachline(joinpath(scheme_dirname, "tmp", scheme_file))
@@ -222,7 +221,8 @@ function download_cgmlst_scheme(target_id, output_dir)
     close(fh)
   end
   println()
-  info("$length(locus_files) loci found.")
+  total_loci = length(locus_files)
+  info("$total_loci loci found.")
   rm(joinpath(scheme_dirname, "tmp"), recursive=true)
   return locus_files
 end
