@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<tool id="mentalist_build_db" name="MentaLiST Build DB" tool_type="manage_data" version="0.2.2">
+  <requirements>
+    <requirement type="package" version="0.2.2">mentalist</requirement>
+  </requirements>
+  <command detect_errors="exit_code">
+  <![CDATA[
+	   python '$__tool_directory__/mentalist_remove_db.py'
+	   --db '$database_name'
+  ]]>
+  </command>
+  <inputs>
+    <param name="kmer_db" type="select">
+      <options from_data_table="mentalist_databases">
+	<validator type="no_options" message="No MentaLiST databases are available" />
+      </options>
+    </param>
+  </inputs>
+  <outputs>
+    <data name="out_file" format="data_manager_json" />
+  </outputs>
+  <citations>
+    <citation type="doi">10.1101/172858</citation>
+    <citation type="doi">10.1099/mgen.0.000146</citation>
+  </citations>
+</tool>
