@@ -217,7 +217,7 @@ function download_enterobase(args)
   build_db(args)
 end
 
-function build_db(args)
+function build_db(args, version=VERSION)
   # check if files exist:
   check_files(args["fasta_files"])
   # get arguments and call the kmer db builder for each locus:
@@ -234,7 +234,7 @@ function build_db(args)
     args["fasta_files"][index] = pop!(split(dirname(fasta_file), "/")) * "/" * basename(fasta_file)
   end
   info("Saving DB ...")
-  save_db(k, kmer_classification, loci, db_file, profile, args)
+  save_db(k, kmer_classification, loci, db_file, profile, args, version)
   info("Done!")
 end
 

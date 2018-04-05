@@ -98,10 +98,11 @@ function kmer_class_for_each_locus(k::Int8, files::Vector{String})
   return results, loci
 end
 
-function save_db(k, kmer_db, loci, filename, profile, args)
+function save_db(k, kmer_db, loci, filename, profile, args, version)
 
   loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus = kmer_db
   d = Dict(
+    "mentalist_version" => version,
     "loci_list"=> Blosc.compress(loci_list),
     "weight_list" => Blosc.compress(weight_list),
     "allele_ids_per_locus" => Blosc.compress(allele_ids_per_locus),
