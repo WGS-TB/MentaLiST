@@ -148,9 +148,10 @@ function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String, compress
   return kmer_class, allele_ids, allowed_kmers
 end
 
-function save_db(k, kmer_db, loci, filename, profile)
+function save_db(k, kmer_db, loci, filename, profile, version)
   loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus = kmer_db
   d = Dict(
+    "mentalist_version" => version,
     "loci_list"=> Blosc.compress(loci_list),
     "weight_list" => Blosc.compress(weight_list),
     "allele_ids_per_locus" => Blosc.compress(allele_ids_per_locus),
