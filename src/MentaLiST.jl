@@ -249,9 +249,18 @@ function build_db(args)
 end
 
 function db_info(args)
+  filename = args["db"]
   info("Opening kmer database ... ")
-  kmer_db, loci, loci2alleles, k, profile, build_args = open_db(args["db"])
+  # Compressed database, open and decompress/decode in memory:
+  d = JLD.load("$filename")
+  info("Finished the JLD load.")
+  build_args = JSON.parse(d["args"])
+  k = build_args["k"]
+  loci = d["loci"]
+  loci_list = Blosc.decompress(Int32, d["loci_list"])
+  num_loci = length(loci_list)
   info("k: $k")
+  info("number of loci: $num_loci")
 end
 
 ##### Main function: just calls the appropriate commands, with arguments:
@@ -268,7 +277,7 @@ elseif args["%COMMAND%"] == "build_db"
   build_db(args["build_db"])
 
 elseif args["%COMMAND%"] == "db_info"
-  include("calling_functions.jl")
+  import JLD: load
   db_info(args["db_info"])
 
 elseif args["%COMMAND%"] == "list_pubmlst"
