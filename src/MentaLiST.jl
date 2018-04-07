@@ -259,6 +259,12 @@ function db_info(args)
   loci = d["loci"]
   loci_list = Blosc.decompress(Int32, d["loci_list"])
   num_loci = length(loci_list)
+  mentalist_version = try
+    d["mentalist_version"]
+  catch
+    "unknown"
+  end
+  info("mentalist_version: $mentalist_version")
   info("k: $k")
   info("number of loci: $num_loci")
 end
