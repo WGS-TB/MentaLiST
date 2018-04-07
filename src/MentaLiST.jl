@@ -17,6 +17,9 @@ function parse_commandline()
       "build_db"
         help = "Build a MLST k-mer database, given a list of FASTA files."
         action = :command
+      "db_info"
+        help = "Extract information from an existing MentaLiST k-mer database"
+        action = :command
       "list_pubmlst"
         help = "List all available MLST schemes from www.pubmlst.org. "
         action = :command
@@ -110,6 +113,13 @@ function parse_commandline()
             help = "Profile file for known genotypes."
     end
 
+    @add_arg_table s["db_info"] begin
+      "--db"
+        help = "MentaLiST kmer database"
+        arg_type = String
+        required = true
+    end
+  
     # Listing functions, common options:
     s_list = ArgParseSettings()
     @add_arg_table s_list begin
@@ -238,6 +248,12 @@ function build_db(args)
   info("Done!")
 end
 
+function db_info(args)
+  info("Opening kmer database ... ")
+  kmer_db, loci, loci2alleles, k, profile, build_args = open_db(args["db"])
+  info("k: $k")
+end
+
 ##### Main function: just calls the appropriate commands, with arguments:
 
 args = parse_commandline()
@@ -245,10 +261,15 @@ args = parse_commandline()
 if args["%COMMAND%"] == "call"
   include("calling_functions.jl")
   call_mlst(args["call"])
+
 elseif args["%COMMAND%"] == "build_db"
   addprocs(args["build_db"]["threads"])
   include("build_db_functions.jl")
   build_db(args["build_db"])
+
+elseif args["%COMMAND%"] == "db_info"
+  include("calling_functions.jl")
+  db_info(args["db_info"])
 
 elseif args["%COMMAND%"] == "list_pubmlst"
   include("mlst_download_functions.jl")
