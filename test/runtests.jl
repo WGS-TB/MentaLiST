@@ -7,6 +7,7 @@ include("../src/db_graph.jl")
 
 TEST_DIR = (dirname(@__FILE__))
 TMPDIR = mktempdir()
+VERSION = "testing"
 
 c_jejuni_pubmlst_dir = string(TMPDIR, "/", "c_jejuni_pubmlst")
 l_pneumophila_cgmlst_dir = string(TMPDIR, "/", "l_pneumophila_cgmlst")

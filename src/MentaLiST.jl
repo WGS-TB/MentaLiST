@@ -6,6 +6,8 @@ using Lumberjack
 using ArgParse
 end
 
+VERSION = "0.1.5"
+
 function parse_commandline()
     s = ArgParseSettings()
     @add_arg_table s begin
@@ -211,7 +213,7 @@ function download_enterobase(args)
   build_db(args)
 end
 
-function build_db(args)
+function build_db(args, version=VERSION)
   include("build_db_functions.jl")
   check_files(args["fasta_files"])
   k::Int8 = args["k"]
@@ -222,7 +224,7 @@ function build_db(args)
   kmer_classification = combine_loci_classification(k, results, loci)
 
   info("Saving DB ...")
-  save_db(k, kmer_classification, loci, args["db"], args["profile"])
+  save_db(k, kmer_classification, loci, args["db"], args["profile"], version)
   info("Done!")
 end
 
