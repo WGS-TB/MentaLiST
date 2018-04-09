@@ -264,9 +264,9 @@ function db_info(args)
   catch
     "unknown"
   end
-  info("mentalist_version: $mentalist_version")
-  info("k: $k")
-  info("number of loci: $num_loci")
+  println("mentalist_version\t$mentalist_version")
+  println("k\t$k")
+  println("num_loci\t$num_loci")
 end
 
 ##### Main function: just calls the appropriate commands, with arguments:
