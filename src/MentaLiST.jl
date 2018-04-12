@@ -231,7 +231,11 @@ function build_db(args, version=VERSION)
   kmer_classification = combine_loci_classification(k, results, loci)
 
   for (index, fasta_file) in enumerate(args["fasta_files"])
-    args["fasta_files"][index] = pop!(split(dirname(fasta_file), "/")) * "/" * basename(fasta_file)
+    scheme_fasta_directory = pop!(split(dirname(fasta_file), "/"))
+    if scheme_fasta_directory == ""
+      scheme_fasta_directory = "."
+    end
+    args["fasta_files"][index] = scheme_fasta_directory * "/" * basename(fasta_file)
   end
   info("Saving DB ...")
   save_db(k, kmer_classification, loci, db_file, profile, args, version)
