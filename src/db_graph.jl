@@ -7,9 +7,9 @@ end
 
 function build{k}(::Type{DNAKmer{k}}, fastafiles)
   kmers = Set{DNAKmer{k}}()
-  record = FASTASeqRecord{BioSequence{DNAAlphabet{2}}}()
+  record = FASTASeqRecord{Bio.Seq.DNASequence}()
   for fastafile in fastafiles
-    open(FASTAReader{BioSequence{DNAAlphabet{2}}}, fastafile) do reader
+    open(FASTAReader{Bio.Seq.DNASequence}, fastafile) do reader
       while !eof(reader)
         read!(reader, record)
         for (pos, kmer) in each(DNAKmer{k}, record.seq)
