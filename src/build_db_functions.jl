@@ -122,11 +122,11 @@ function kmer_class_for_locus{k}(::Type{DNAKmer{k}}, fastafile::String, compress
     # Find db graph contigs, and get 1st kmer of each:
     allowed_kmers = db_graph_contig_kmers(DNAKmer{k}, [fastafile])
   end
-  record = FASTASeqRecord{BioSequence{DNAAlphabet{2}}}()
+  record = FASTASeqRecord{DNASequence}()
   kmer_class = DefaultDict{DNAKmer{k}, Vector{Int16}}(() -> Int16[])
   allele_ids = Int16[]
   allele_idx::Int16 = 1
-  open(FASTAReader{BioSequence{DNAAlphabet{2}}}, fastafile) do reader
+  open(FASTAReader{DNASequence}, fastafile) do reader
       while !eof(reader)
           read!(reader, record)
           for (pos, kmer) in each(DNAKmer{k}, record.seq)
