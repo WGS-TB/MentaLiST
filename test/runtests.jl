@@ -33,7 +33,7 @@ end
 end
 
 s_enterica_enterobase_cgmlst_locus_files = ""
-@testset "downloads_enterica_enterobase_cgmlst_scheme" begin
+@testset "download_s_enterica_enterobase_cgmlst_scheme" begin
   mkdir(s_enterica_enterobase_cgmlst_dir)
   s_enterica_enterobase_cgmlst_locus_files = download_enterobase_scheme("S", "cg", s_enterica_enterobase_cgmlst_dir)
   s_enterica_enterobase_cgmlst_allele_filenames = open(string(TEST_DIR, "/", "test_data", "/", "s_enterica_enterobase_cgmlst_allele_filenames.txt"))
@@ -45,7 +45,7 @@ end
 @testset "build_s_enterica_enterobase_cgmlst_db" begin
     K::Int8 = 31
     results, loci = kmer_class_for_each_locus(K, s_enterica_enterobase_cgmlst_locus_files, true)
-    @test typeof(results) == Vector{Tuple{Dict{UInt64,Vector{Int16}},Vector{Int16},Dict{UInt64,Int64}}}
+    @test typeof(results) == Array{Tuple{Dict{UInt64,Array{Int16,1}},Array{Int16,1},Dict{UInt64,Int64}},1}
     @test typeof(loci) == Vector{String}
 
     kmer_classification = combine_loci_classification(K, results, loci)
@@ -61,8 +61,8 @@ end
 
     profile = nothing
     args = Dict("k" => K, "fasta_files" => s_enterica_enterobase_cgmlst_locus_files)
-    save_db(K, kmer_classification, loci, s_enterica_enterobase_cgmlst_db_file, profile, args, VERSION)
-    @test isfile(l_pneumophila_cgmlst_db_file)
+    save_db(K, kmer_classification, loci, s_enterica_enterobase_cgmlst_db_file, profile, VERSION)
+    @test isfile(s_enterica_enterobase_cgmlst_db_file)
   end
 
 @testset "complement_alleles" begin
