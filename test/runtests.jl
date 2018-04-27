@@ -45,7 +45,7 @@ end
 @testset "build_s_enterica_enterobase_cgmlst_db" begin
     K::Int8 = 31
     results, loci = kmer_class_for_each_locus(K, s_enterica_enterobase_cgmlst_locus_files, true)
-    @test typeof(results) == Array{Tuple{Dict{UInt64,Array{Int16,1}},Array{Int16,1},Dict{UInt64,Int64}},1}
+    @test typeof(results) == Array{Any,1}
     @test typeof(loci) == Vector{String}
 
     kmer_classification = combine_loci_classification(K, results, loci)
