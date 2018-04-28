@@ -6,7 +6,7 @@ using Lumberjack
 using ArgParse
 end
 
-VERSION = "0.1.5"
+VERSION = "0.1.6"
 
 function parse_commandline()
     s = ArgParseSettings()
