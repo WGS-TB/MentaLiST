@@ -274,11 +274,9 @@ function _find_profile(alleles, profile)
 end
 
 function write_calls(votes, loci_votes, loci, loci2alleles, sample, filename, profile)
-  # get best voted:
-  best_voted_alleles = [sort(collect(votes[idx]), by=x->-x[2])[1][1] for (idx,locus) in enumerate(loci)]
-  # translate alleles to original id:
-  best_voted_alleles = [loci2alleles[locus_idx][best] for (locus_idx, best) in enumerate(best_voted_alleles)]
-  # check if there is a type on the database:
+  # get best voted;
+  # if there is no vote for the locus, output a '0' (not present); otherwise, the highest voted allele (translating to original id with loci2alleles)
+  best_voted_alleles = [loci_votes[idx] > 0 ? loci2alleles[locus_idx][sort(collect(votes[idx]), by=x->-x[2])[1][1]] : 0 for (idx,locus) in enumerate(loci)]
   genotype, clonal_complex = _find_profile(best_voted_alleles, profile)
 
   # write:
@@ -297,8 +295,7 @@ function write_calls(votes, loci_votes, loci, loci2alleles, sample, filename, pr
       max_idx = min(length(votes[idx]),10)
       sorted_vote = sort(collect(votes[idx]), by=x->-x[2])
       top_vote = sorted_vote[1][2] + (sorted_vote[end][2] < 0 ? abs(sorted_vote[end][2]) : 0)
-      votes_txt = join(["$(loci2alleles[idx][a])($b)" for (a,b) in sorted_vote],",")
-      # votes_txt = join(["$a($b)" for (a,b) in sorted_vote[1:max_idx]],",")
+      votes_txt = loci_votes[idx] > 0 ? join(["$(loci2alleles[idx][a])($b)" for (a,b) in sorted_vote],",") : "No kmer of this locus is present on the sample."
       write(f, "$locus\t$(loci_votes[idx])\t$top_vote\t$votes_txt\n")
       # ties:
       if length(sorted_vote) > 1 && sorted_vote[1][2] == sorted_vote[2][2]
