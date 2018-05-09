@@ -276,7 +276,7 @@ end
 function write_calls(votes, loci_votes, loci, loci2alleles, sample, filename, profile)
   # get best voted;
   # if there is no vote for the locus, output a '0' (not present); otherwise, the highest voted allele (translating to original id with loci2alleles)
-  best_voted_alleles = [loci_votes[idx] > 0 ? loci2alleles[locus_idx][sort(collect(votes[idx]), by=x->-x[2])[1][1]] : 0 for (idx,locus) in enumerate(loci)]
+  best_voted_alleles = [loci_votes[idx] > 0 ? loci2alleles[idx][sort(collect(votes[idx]), by=x->-x[2])[1][1]] : 0 for (idx,locus) in enumerate(loci)]
   genotype, clonal_complex = _find_profile(best_voted_alleles, profile)
 
   # write:
