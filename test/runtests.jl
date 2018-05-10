@@ -1,6 +1,7 @@
 using Base.Test
 using Base.@__FILE__
 
+include("../src/MentaLiST.jl")
 include("../src/mlst_download_functions.jl")
 include("../src/build_db_functions.jl")
 include("../src/db_graph.jl")
