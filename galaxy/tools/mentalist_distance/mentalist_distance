@@ -1,0 +1,55 @@
+#!/usr/bin/env Rscript
+
+args = commandArgs(trailingOnly=TRUE)
+
+#' extract the MLST data
+#' @param call_file -> MLST call file
+#' @param exclude (optional) -> columns to exclude in the MLST call files.
+#' @return a MLST call matrix, with samples on the rows and loci on the columns.
+mlst_calls = function(call_file, exclude=c()){
+  mlst_calls = read.csv(call_file, row.names=1, sep="\t")
+  # exclude non allele calls:
+  exclude <- c(exclude, c("ST", "clonal_complex"))
+  if(any(exclude %in% names(mlst_calls))) {
+    return(mlst_calls[ , -which(names(mlst_calls) %in% exclude)])
+  } else {
+    return(mlst_calls)
+  }
+}
+
+#' ham_distance  compute the hamming distance matrix (row by row)
+#' @param X matrix
+#' @return dist_matrix the distance matrix of the X's rows with the haming distance
+ham_distance = function(X){
+  X[is.na(X)] <- -1
+  X <- as.matrix(X)
+  characs = unique(as.vector(X))
+  U = X == characs[1]
+  Cumu = U %*% t(U)
+  for (chara in characs[-1]){
+    U = X == chara
+    Cumu = Cumu + U %*% t(U)
+  }
+  dist = ncol(X) - Cumu
+  return(dist)
+}
+
+usage <- function() {
+  cat("usage: mentalist_distance <input.tsv>\n")
+}
+
+
+main <- function(args) {
+  if(is.na(args[1])){
+    usage()
+    return()
+  }
+  mlst <- mlst_calls(args[1])
+  d_matrix <- ham_distance(mlst)
+  cat(dim(d_matrix)[1], '\n', sep='')
+  write.table(d_matrix, quote=FALSE, col.names=FALSE)
+}
+
+if(!interactive()) {
+    main(args)
+}
