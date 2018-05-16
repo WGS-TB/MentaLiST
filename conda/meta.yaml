@@ -1,5 +1,5 @@
 {% set name = "MentaLiST" %}
-{% set version = "0.1_SNAPSHOT" %}
+{% set version = "0.1.8b" %}
 
 package:
   name: {{ name|lower }}
@@ -15,15 +15,15 @@ build:
 requirements:
   build:
     - julia 0.5.2
-    - hdf5
-    - mpfr
+    - hdf5 1.10.*
+    - mpfr 3.1.*
 
   run:
     - julia 0.5.2
-    - hdf5
-    - mpfr
-    - libxml2
-    - unzip
+    - hdf5 1.10.*
+    - mpfr 3.1.*
+    - libxml2 2.9.*
+    - unzip 6.*
 
 test:
   commands:
