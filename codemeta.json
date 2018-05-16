@@ -1,0 +1,57 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "identifier": "MentaLiST",
+  "description": "",
+  "name": "MentaLiST: The MLST pipeline developed by the PathOGiST research group",
+  "codeRepository": "https://github.com/WGS-TB/MentaLiST",
+  "issueTracker": "https://github.com/WGS-TB/MentaLiST/issues",
+  "license": "https://spdx.org/licenses/MIT",
+  "version": "0.1.7",
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Pedro",
+      "familyName": "Feijão",
+      "email": "pedrofeijao1975@gmail.com",
+      "@id": "http://orcid.org/0000-0001-8179-7207"
+    }
+  ],
+  "contributor": [
+    {
+      "@type": "Person",
+      "givenName": "Dan",
+      "familyName": "Fornika",
+      "email": "dfornika@gmail.com",
+      "@id": "http://orcid.org/0000-0002-6178-3585"
+    },
+  ],
+  "maintainer": [
+    {
+      "@type": "Person",
+      "givenName": "Pedro",
+      "familyName": "Feijão",
+      "email": "pedrofeijao1975@gmail.com",
+      "@id": "http://orcid.org/0000-0001-8179-7207"
+    },
+    {
+      "@type": "Person",
+      "givenName": "Dan",
+      "familyName": "Fornika",
+      "email": "dfornika@gmail.com",
+      "@id": "http://orcid.org/0000-0002-6178-3585"
+    }
+  ]
+  "developmentStatus": "active",
+  "downloadUrl": "https://github.com/WGS-TB/MentaLiST/archive/v0.1.7.tar.gz",
+  "funding":"Genome Canada/Genome British Columbia: 2015 Bioinformatics and Computational Biology B/CB",
+  "keywords": [
+    "genomics",
+    "bioinformatics",
+    "MLST"
+  ],
+  "softwareVersion":"0.1.7",
+  "dateCreated":"2017-06-28",
+  "datePublished":"2018-05-02",
+  "programmingLanguage": "julia"
+}
