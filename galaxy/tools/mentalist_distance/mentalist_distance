@@ -46,8 +46,9 @@ main <- function(args) {
   }
   mlst <- mlst_calls(args[1])
   d_matrix <- ham_distance(mlst)
-  cat(dim(d_matrix)[1], '\n', sep='')
-  write.table(d_matrix, quote=FALSE, col.names=FALSE)
+  cat('', colnames(d_matrix), sep='\t')
+  cat('\n')
+  write.table(d_matrix, quote=FALSE, sep='\t', col.names=FALSE)
 }
 
 if(!interactive()) {
