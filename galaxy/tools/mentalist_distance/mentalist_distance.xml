@@ -1,4 +1,4 @@
-<tool id="mentalist_distance" name="Generate Distance Matrix from MentaLiST Output" version="0.1.8">
+<tool id="mentalist_distance" name="MentaLiST Distance Matrix" version="0.1.8b">
   <command detect_errors="exit_code"><![CDATA[
     $__tool_directory__/mentalist_distance
     '${input}'
@@ -8,20 +8,20 @@
     <param name="input" type="data" format="tabular" label="MentaLiST Calls" help=""/>
   </inputs>
   <outputs>
-    <data name="output" format="phylip"/>
+    <data name="output" format="tabular"/>
   </outputs>
   <tests>
     <test>
       <param name="input" value="small_input_00.tsv" />
-      <output name="output" file="small_output_00.phylip" />
+      <output name="output" file="small_output_00.tsv" />
     </test>
     <test>
       <param name="input" value="med_input_00.tsv" />
-      <output name="output" file="med_output_00.phylip" />
+      <output name="output" file="med_output_00.tsv" />
     </test>
     <test>
       <param name="input" value="large_input_00.tsv" />
-      <output name="output" file="large_output_00.phylip" />
+      <output name="output" file="large_output_00.tsv" />
     </test>
   </tests>
   <help><![CDATA[
