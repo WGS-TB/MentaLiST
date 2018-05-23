@@ -8,7 +8,7 @@
     <param name="input" type="data" format="tabular" label="MentaLiST Calls" help=""/>
   </inputs>
   <outputs>
-    <data name="output" format="phylip"/>
+    <data name="output" format="tabular"/>
   </outputs>
   <tests>
     <test>
