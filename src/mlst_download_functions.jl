@@ -104,7 +104,7 @@ function available_cgmlst_schema()
   open(_cgmlst_http()) do f
     for l in eachline(f)
       for row in split(l, "<td>")
-        m = match(r"<a href='http://www.cgmlst.org/ncs/schema/(?<id>[0-9]+)/'><em>(?<species>.+)</em>", row)
+        m = match(r"<a href='https?://www.cgmlst.org/ncs/schema/(?<id>[0-9]+)/'><em>(?<species>.+)</em>", row)
         if m != nothing
           id, species = m.captures
           push!(scheme_list,(id,species))
@@ -188,7 +188,7 @@ function download_cgmlst_scheme(target_id, output_dir)
     exit(-1)
   end
   info("Downloading cgMLST scheme ...")
-  scheme_zip_file = _download_to_folder("http://www.cgmlst.org/ncs/schema/$id/alleles", output_dir)
+  scheme_zip_file = _download_to_folder("https://www.cgmlst.org/ncs/schema/$id/alleles", output_dir)
   locus_files = String[]
   locus = ""
   info("Unzipping cgMLST scheme into individual FASTA files for each locus ...")
