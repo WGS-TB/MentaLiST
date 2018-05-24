@@ -23,7 +23,7 @@ def mentalist_download_enterobase( data_manager_dict, kmer_size, scheme, type, p
         'Y': 'Yersinia'
     }
     translation_table = string.maketrans(string.punctuation, ("_" * 32))
-    base_path = scheme.lower().replace(" ", "_").translate(translation_table) + "_enterobase"
+    base_path = char_to_full_organism_name[scheme].lower().replace(" ", "_").translate(translation_table) + "_enterobase"
     today = datetime.date.today().isoformat()
     scheme_files_path = base_path + "_scheme_" + today
     database_path = base_path + "_k" + str(kmer_size) + "_" + today
