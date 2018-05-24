@@ -7,7 +7,7 @@
   "codeRepository": "https://github.com/WGS-TB/MentaLiST",
   "issueTracker": "https://github.com/WGS-TB/MentaLiST/issues",
   "license": "https://spdx.org/licenses/MIT",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "author": [
     {
       "@type": "Person",
@@ -50,8 +50,8 @@
     "bioinformatics",
     "MLST"
   ],
-  "softwareVersion":"0.1.7",
+  "softwareVersion":"0.1.8",
   "dateCreated":"2017-06-28",
-  "datePublished":"2018-05-02",
+  "datePublished":"2018-05-24",
   "programmingLanguage": "julia"
 }
