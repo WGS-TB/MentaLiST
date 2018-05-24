@@ -17,13 +17,18 @@ DEFAULT_DATA_TABLE_NAMES = ["mentalist_databases"]
 
 
 def mentalist_download_enterobase( data_manager_dict, kmer_size, scheme, type, params, target_directory, data_table_names=DEFAULT_DATA_TABLE_NAMES ):
+    char_to_full_organism_name = {
+        'E': 'Escherichia/Shigella',
+        'S': 'Salmonella',
+        'Y': 'Yersinia'
+    }
     translation_table = string.maketrans(string.punctuation, ("_" * 32))
-    base_path = scheme.lower().replace(" ", "_").translate(translation_table) + "_enterobase"
+    base_path = char_to_full_organism_name[scheme].lower().replace(" ", "_").translate(translation_table) + "_enterobase"
     today = datetime.date.today().isoformat()
     scheme_files_path = base_path + "_scheme_" + today
     database_path = base_path + "_k" + str(kmer_size) + "_" + today
     database_name = base_path + "_k" + str(kmer_size) + "_" + today + ".jld"
-    display_name = scheme + " k=" + str(kmer_size) + " (Enterobase) " + today
+    display_name = char_to_full_organism_name[scheme] + " k=" + str(kmer_size) + " (Enterobase) " + today
     args = [ 'mentalist', 'download_enterobase', '-s', scheme, '-t', type, '-k', str(kmer_size), '--db', database_name, '-o', scheme_files_path]
     proc = subprocess.Popen( args=args, shell=False, cwd=target_directory )
     return_code = proc.wait()
