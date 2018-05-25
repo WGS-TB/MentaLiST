@@ -23,19 +23,19 @@ def mentalist_download_enterobase( data_manager_dict, kmer_size, scheme, type, p
         'Y': 'Yersinia'
     }
     translation_table = string.maketrans(string.punctuation, ("_" * 32))
-    base_path = char_to_full_organism_name[scheme].lower().replace(" ", "_").translate(translation_table) + "_enterobase"
+    base_path = char_to_full_organism_name[scheme].lower().replace(" ", "_").translate(translation_table) + "_enterobase_" + type + "mlst"
     today = datetime.date.today().isoformat()
     scheme_files_path = base_path + "_scheme_" + today
-    database_path = base_path + "_k" + str(kmer_size) + "_" + today
-    database_name = base_path + "_k" + str(kmer_size) + "_" + today + ".jld"
-    display_name = char_to_full_organism_name[scheme] + " k=" + str(kmer_size) + " (Enterobase) " + today
+    database_value = base_path + "_k" + str(kmer_size) + "_" + today
+    database_name = database_value + ".jld"
+    display_name = char_to_full_organism_name[scheme] + " k=" + str(kmer_size) + " (Enterobase) " + type + "MLST " + today
     args = [ 'mentalist', 'download_enterobase', '-s', scheme, '-t', type, '-k', str(kmer_size), '--db', database_name, '-o', scheme_files_path]
     proc = subprocess.Popen( args=args, shell=False, cwd=target_directory )
     return_code = proc.wait()
     if return_code:
         print("Error building database.", file=sys.stderr)
         sys.exit( return_code )
-    data_table_entry = dict( value=database_path, dbkey='Enterobase', name=display_name, path=database_name )
+    data_table_entry = dict( value=database_value, dbkey='Enterobase', name=display_name, path=database_name )
     for data_table_name in data_table_names:
         _add_data_table_entry( data_manager_dict, data_table_name, data_table_entry )
 
