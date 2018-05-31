@@ -1,4 +1,7 @@
-<tool id="mentalist_distance" name="MentaLiST Distance Matrix" version="0.1.8b">
+<tool id="mentalist_distance" name="MentaLiST Distance Matrix" version="0.1-SNAPSHOT">
+  <requirements>
+    <requirement type="package" version="3.4.1">r-base</requirement>
+  </requirements>
   <command detect_errors="exit_code"><![CDATA[
     $__tool_directory__/mentalist_distance
     '${input}'
