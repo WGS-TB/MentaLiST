@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<tool id="mentalist_download_cgmlst" name="MentaLiST Download from cgMLST" tool_type="manage_data" version="0.1-SNAPSHOT">
+<tool id="mentalist_download_cgmlst" name="MentaLiST Download from cgMLST" tool_type="manage_data" version="0.1.8">
   <requirements>
-    <requirement type="package" version="0.1_SNAPSHOT">mentalist</requirement>
+    <requirement type="package" version="0.1.8">mentalist</requirement>
   </requirements>
   <command detect_errors="exit_code">
     <![CDATA[
