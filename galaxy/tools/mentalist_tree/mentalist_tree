@@ -3,7 +3,7 @@
 args = commandArgs(trailingOnly=TRUE)
 
 usage <- function() {
-  cat("usage: mentalist_distance <input.tsv>\n")
+  cat("usage: mentalist_tree <input.tsv>\n")
 }
 
 main <- function(args) {
