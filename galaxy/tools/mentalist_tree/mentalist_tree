@@ -1,0 +1,24 @@
+#!/usr/bin/env Rscript
+
+args = commandArgs(trailingOnly=TRUE)
+
+usage <- function() {
+  cat("usage: mentalist_distance <input.tsv>\n")
+}
+
+main <- function(args) {
+  if(is.na(args[1])){
+    usage()
+    return()
+  }
+  suppressMessages(library(phangorn))
+  
+  distance_matrix <- read.csv(args[1], row.names=1, sep="\t")
+  upgma_tree <- upgma(distance_matrix)
+  newick_tree <- write.tree(upgma_tree)
+  cat(newick_tree, '\n')
+}
+
+if(!interactive()) {
+    main(args)
+}

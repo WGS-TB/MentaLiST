@@ -1,0 +1,36 @@
+<tool id="mentalist_tree" name="MentaLiST Tree" version="0.1-SNAPSHOT">
+  <requirements>
+    <requirement type="package" version="3.4.1">r-base</requirement>
+    <requirement type="package" version="2.2.0">r-phangorn</requirement>
+  </requirements>
+  <command detect_errors="exit_code"><![CDATA[
+    $__tool_directory__/mentalist_tree
+    '${input}'
+    > '${output}'
+  ]]></command>
+  <inputs>
+    <param name="input" type="data" format="tabular" label="MentaLiST Distance Matrix" help=""/>
+  </inputs>
+  <outputs>
+    <data name="output" format="newick"/>
+  </outputs>
+  <tests>
+    <test>
+      <param name="input" value="mentalist_tree/small_input_00.tsv" />
+      <output name="output" file="mentalist_tree/small_output_00.nwk" />
+    </test>
+    <test>
+      <param name="input" value="mentalist_tree/med_input_00.tsv" />
+      <output name="output" file="mentalits_tree/med_output_00.nwk" />
+    </test>
+    <test>
+      <param name="input" value="mentalist_tree/large_input_00.tsv" />
+      <output name="output" file="mentalist_tree/large_output_00.nwk" />
+    </test>
+  </tests>
+  <help><![CDATA[
+    mentalist_distance <input.tsv>
+  ]]></help>
+  <citations>
+  </citations>
+</tool>
