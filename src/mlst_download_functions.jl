@@ -140,7 +140,7 @@ end
 @everywhere function _download_enterobase_locus(locus, output_dir, sp_code, tp_code)
   fasta_locus = joinpath(output_dir, "$locus.fa")
   if !isfile(fasta_locus)
-    gzip_locus = _download_to_folder("http://enterobase.warwick.ac.uk/download_data?species=$sp_code&scheme=$tp_code&allele=$locus", output_dir, false, "$locus.fa.gz")
+    gzip_locus = _download_to_folder("https://enterobase.warwick.ac.uk/schemes/$sp_code.$tp_code/$locus.fasta.gz", output_dir, false, "$locus.fa.gz")
     # gunzip to a FASTA and remove the gzip file;
     f_in = GZip.open(gzip_locus)
     f_out = open(fasta_locus, "w")
