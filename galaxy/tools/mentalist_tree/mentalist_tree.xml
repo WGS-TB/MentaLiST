@@ -1,7 +1,6 @@
-<tool id="mentalist_tree" name="MentaLiST Tree" version="0.1-SNAPSHOT">
+<tool id="mentalist_tree" name="MentaLiST Tree" version="0.1.8">
   <requirements>
-    <requirement type="package" version="3.4.1">r-base</requirement>
-    <requirement type="package" version="2.3.1">r-phangorn</requirement>
+    <requirement type="package" version="1.7.0">biopython</requirement>
   </requirements>
   <command detect_errors="exit_code"><![CDATA[
     $__tool_directory__/mentalist_tree
