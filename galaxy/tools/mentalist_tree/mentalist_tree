@@ -21,8 +21,22 @@ def process_input_matrix(input_matrix):
     distance_matrix = []
     for input_matrix_row in input_matrix:
         distance_matrix.append([int(i) for i in input_matrix_row])
+    """ np.tril() converts a matrix like this: [[0 1 2]
+                                                [1 0 1]
+                                                [2 1 0]]
+        ...into this: [[0 0 0]
+                       [1 0 0]
+                       [2 1 0]]
+        ...but what we need to pass to DistanceMatrix() is this: [[0]
+                                                                  [1 0]
+                                                                  [2 1 0]]
+        ...so that's what the (somewhat cryptic) code below does.
+    """
     distance_matrix = np.tril(np.array(distance_matrix))
     num_rows = distance_matrix.shape[0]
+    """ masking the distance matrix with tril_indices gives a linearized
+        distance matrix [0 1 0 2 1 0] that we need to re-construct into [[0], [1, 0], [2, 1, 0]]
+    """
     lower_triangular_idx_mask = np.tril_indices(num_rows)
     linear_distance_matrix = distance_matrix[lower_triangular_idx_mask]
     distance_matrix = []
