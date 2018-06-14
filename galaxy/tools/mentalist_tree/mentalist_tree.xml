@@ -20,7 +20,7 @@
     </test>
     <test>
       <param name="input" value="mentalist_tree/med_input_00.tsv" />
-      <output name="output" file="mentalits_tree/med_output_00.nwk" />
+      <output name="output" file="mentalitst_tree/med_output_00.nwk" />
     </test>
     <test>
       <param name="input" value="mentalist_tree/large_input_00.tsv" />
