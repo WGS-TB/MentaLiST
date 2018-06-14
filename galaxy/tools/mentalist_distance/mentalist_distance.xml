@@ -1,4 +1,4 @@
-<tool id="mentalist_distance" name="MentaLiST Distance Matrix" version="0.1-SNAPSHOT">
+<tool id="mentalist_distance" name="MentaLiST Distance Matrix" version="0.1.8">
   <requirements>
     <requirement type="package" version="3.4.1">r-base</requirement>
   </requirements>

@@ -11,7 +11,7 @@
     <param name="input" type="data" format="tabular" label="MentaLiST Distance Matrix" help=""/>
   </inputs>
   <outputs>
-    <data name="output" format="newick"/>
+    <data name="output" format="txt"/>
   </outputs>
   <tests>
     <test>
