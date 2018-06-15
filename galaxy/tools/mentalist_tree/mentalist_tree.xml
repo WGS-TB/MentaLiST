@@ -1,4 +1,4 @@
-<tool id="mentalist_tree" name="MentaLiST Tree" version="0.1.8">
+<tool id="mentalist_tree" name="MentaLiST Tree" version="0.1.9">
   <requirements>
     <requirement type="package" version="1.70">biopython</requirement>
   </requirements>

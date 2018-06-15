@@ -1,6 +1,6 @@
-<tool id="mentalist_call" name="MentaLiST MLST Analysis" version="0.1.8">
+<tool id="mentalist_call" name="MentaLiST MLST Analysis" version="0.1.9">
   <requirements>
-    <requirement type="package" version="0.1.8">mentalist</requirement>
+    <requirement type="package" version="0.1.9">mentalist</requirement>
   </requirements>
   <command detect_errors="exit_code"><![CDATA[
     mentalist
