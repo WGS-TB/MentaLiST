@@ -167,7 +167,7 @@ function download_enterobase_scheme(scheme, s_type, output_dir, overwrite=false)
     if isfile(fasta_locus)
       continue
     end
-    gzip_locus = _download_to_folder("http://enterobase.warwick.ac.uk/download_data?species=$sp_code&scheme=$tp_code&allele=$locus", output_dir, false, "$locus.fa.gz")
+    gzip_locus = _download_to_folder("https://enterobase.warwick.ac.uk/schemes/$sp_code.$tp_code/$locus.fasta.gz", output_dir, false, "$locus.fa.gz")
     # gunzip to a FASTA and remove the gzip file;
     f_in = GZip.open(gzip_locus)
     f_out = open(fasta_locus, "w")
