@@ -15,16 +15,16 @@
   </outputs>
   <tests>
     <test>
-      <param name="input" value="small_input_00.tsv" />
-      <output name="output" file="small_output_00.tsv" />
+      <param name="input" value="mentalist_distance/small_input_00.tsv" />
+      <output name="output" file="mentalist_distance/small_output_00.tsv" />
     </test>
     <test>
-      <param name="input" value="med_input_00.tsv" />
-      <output name="output" file="med_output_00.tsv" />
+      <param name="input" value="mentalist_distance/med_input_00.tsv" />
+      <output name="output" file="mentalist_distance/med_output_00.tsv" />
     </test>
     <test>
-      <param name="input" value="large_input_00.tsv" />
-      <output name="output" file="large_output_00.tsv" />
+      <param name="input" value="mentalist_distance/large_input_00.tsv" />
+      <output name="output" file="mentalist_distance/large_output_00.tsv" />
     </test>
   </tests>
   <help><![CDATA[

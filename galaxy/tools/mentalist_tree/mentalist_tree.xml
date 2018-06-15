@@ -1,0 +1,31 @@
+<tool id="mentalist_tree" name="MentaLiST Tree" version="0.1.8">
+  <requirements>
+    <requirement type="package" version="1.70">biopython</requirement>
+  </requirements>
+  <command detect_errors="exit_code"><![CDATA[
+    $__tool_directory__/mentalist_tree
+    '${input}'
+    > '${output}'
+  ]]></command>
+  <inputs>
+    <param name="input" type="data" format="tabular" label="MentaLiST Distance Matrix" help=""/>
+  </inputs>
+  <outputs>
+    <data name="output" format="txt"/>
+  </outputs>
+  <tests>
+    <test>
+      <param name="input" value="mentalist_tree/small_input_00.tsv" />
+      <output name="output" file="mentalist_tree/small_output_00.nwk" />
+    </test>
+    <test>
+      <param name="input" value="mentalist_tree/med_input_00.tsv" />
+      <output name="output" file="mentalitst_tree/med_output_00.nwk" />
+    </test>
+  </tests>
+  <help><![CDATA[
+    mentalist_distance <input.tsv>
+  ]]></help>
+  <citations>
+  </citations>
+</tool>
