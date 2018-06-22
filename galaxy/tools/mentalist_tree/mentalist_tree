@@ -59,7 +59,7 @@ def main():
     input_matrix = list(reader)
     # Don't build a tree with fewer than 3 samples, just produce an empty file
     if len(input_matrix) < 4:
-      print('')
+      print('();')
       sys.exit(0)
     distance_matrix = process_input_matrix(input_matrix)
     constructor = DistanceTreeConstructor()
