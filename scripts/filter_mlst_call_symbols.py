@@ -6,6 +6,7 @@ import argparse
 import sys
 import os
 import string
+import re
 
 if __name__ == "__main__":
 
@@ -20,7 +21,7 @@ if __name__ == "__main__":
     if not os.path.isdir(param.output):
         os.makedirs(param.output)
     # remove all but digits:
-    all_chars =string.maketrans('','')
+    all_chars = string.maketrans('','')
     nodigs = all_chars.translate(all_chars, string.digits)
     for file in param.files:
         with open(file) as f_in, open(os.path.join(param.output,os.path.basename(file)), "wb") as f_out:
@@ -29,4 +30,5 @@ if __name__ == "__main__":
             genotype = f_in.readline().strip().split()
             genotype = "\t".join([genotype[0]] + [x.translate(all_chars, nodigs) for x in genotype[1:]])
             # genotype = "\t".join([genotype[0]] + [x for x in genotype[1:]])
+            genotype = re.sub(pattern='\t\t', repl='\t-1\t', string=genotype)
             f_out.write("%s\n" % genotype)
