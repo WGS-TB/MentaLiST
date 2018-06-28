@@ -30,5 +30,6 @@ if __name__ == "__main__":
             genotype = f_in.readline().strip().split()
             genotype = "\t".join([genotype[0]] + [x.translate(all_chars, nodigs) for x in genotype[1:]])
             # genotype = "\t".join([genotype[0]] + [x for x in genotype[1:]])
-            genotype = re.sub(pattern='\t\t', repl='\t-1\t', string=genotype)
+            while re.search(pattern='\t\t', string = genotype):
+                genotype = re.sub(pattern='\t\t', repl='\t-1\t', string=genotype)
             f_out.write("%s\n" % genotype)
