@@ -78,6 +78,9 @@ function parse_commandline()
           nargs = '*'
           help = "FastQ input files, one per sample, reverse reads."
           arg_type = String
+        "--fasta"
+          help = "Input files are in FASTA format, instead of the default FASTQs."
+          action = :store_true
     end
 
     ## Common option for all db building commands:

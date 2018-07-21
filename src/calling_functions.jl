@@ -1,7 +1,8 @@
-using Bio.Seq: BioSequence, DNASequence, DNAAlphabet, DNAKmer, canonical, FASTASeqRecord, FASTAReader, each, neighbors
+# using Bio.Seq: BioSequence, DNASequence, DNAAlphabet, DNAKmer, canonical, FASTASeqRecord, FASTAReader, each, neighbors
+using Bio.Seq: BioSequence, DNASequence, DNAAlphabet, DNAKmer, canonical, each
 using DataStructures: DefaultDict, OrderedDict
 using FastaIO
-using OpenGene: fastq_open, fastq_read
+using OpenGene: fastq_open, fastq_read, fasta_open, fasta_read
 using TextWrap: wrap
 import JLD: load, save
 ### Main calling function:
@@ -9,7 +10,7 @@ function run_calling_pipeline(args)
   # get samples/fastq files from command line parameters:
   sample_files = build_sample_files(args["sample_input_file"], args["1"], args["2"])
 
-  # check if DB and fastq files exist:
+  # check if DB and fast(Q/A) files exist:
   check_files([args["db"];[fastq for fq_files in values(sample_files) for fastq in fq_files]])
   # array for saving each sample result:
   sample_results = []
@@ -25,11 +26,13 @@ function run_calling_pipeline(args)
   # process each sample:
   for (sample, fq_files) in sample_files
     info("Sample: $sample. Opening fastq file(s) and counting kmers ... ")
-    kmer_count = count_kmers(DNAKmer{k}, fq_files)
+    kmer_count = count_kmers(DNAKmer{k}, fq_files, args["fasta"])
     info("Voting for alleles ... ")
     votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
     info("Calling alleles and novel alleles ...")
-    allele_calls, voting_result = call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], args["kt"], args["mutation_threshold"], args["output_votes"])
+    # If fasta are given as input, set kt as 1:
+    kt = args["fasta"] ? 1 : args["kt"]
+    allele_calls, voting_result = call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], kt, args["mutation_threshold"], args["output_votes"])
     push!(sample_results, (sample, allele_calls, voting_result))
   end
   info("Writing output ...")
@@ -172,9 +175,10 @@ end
 function read_alleles(fastafile, ids)
   alleles = Dict{Int, String}()
   idx = 1
-  for (name, seq) in FastaReader(fastafile)
+  istream = fasta_open(fastafile)
+  while (fq = fasta_read(istream))!=false
     if in(idx, ids)
-      alleles[idx] = seq
+      alleles[idx] = fq.sequence.seq
     end
     idx += 1
   end
@@ -207,7 +211,7 @@ function PartiallyCoveredAllele(call, coverage, depth, report_txt, alleles_to_ch
   return AlleleCall(call, "-", coverage, depth, report_txt, EmptyNovelAllele(), alleles_to_check)
 end
 
-
+N_SEARCH = 40 # number of alleles to search, in order of voting;
 function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fasta_files, kmer_thr, max_mutations, output_votes)
 
   # Function to call for each allele
@@ -216,11 +220,11 @@ function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fast
       return LocusNotPresentCall()
     end
     # Votes: Dict{Int16,Dict{Int16,Int64}}; locus_idx -> { allele_idx -> votes};
+
     sorted_voted_alleles = sort(collect(votes_per_allele), by=x->-x[2]) # sort by max votes for this locus;
-    allele_set = Set([al for (al, votes) in sorted_voted_alleles[1:min(10,end)]])
+    allele_set = Set([al for (al, votes) in sorted_voted_alleles[1:min(N_SEARCH,end)]])
     allele_seqs = read_alleles(fasta_file, allele_set)
-    # TODO: instead of 10-20 from the sort, something a bit smarter? All within some margin from the best?
-    allele_coverage = [AlleleCoverage(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)...) for (al, votes) in sorted_voted_alleles[1:min(10,end)]]
+    allele_coverage = [AlleleCoverage(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)...) for (al, votes) in sorted_voted_alleles[1:min(N_SEARCH,end)]]
     # filter to find fully covered alleles:
     covered = [x for x in allele_coverage if (x.depth >= kmer_thr)] # if I remove alleles with negative votes, I might the reconstruct the same allele on the novel rebuild; better to flag output
     if length(covered) == 1
@@ -270,7 +274,6 @@ function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fast
       push!(candidate_list, (novel_allele, al_cov))
     end
     # sort by no gaps, then minimum mutations; then more votes
-    # sorted_candidates = sort(candidate_list,by=(novel,cov)->(length(novel.uncorrected_gaps),novel.n_mutations,-cov.votes))
     sorted_candidates = sort(candidate_list,by=x->(length(x[1].uncorrected_gaps),x[1].n_mutations,-x[2].votes))
     # get best
     novel_allele, al_cov = sorted_candidates[1]
@@ -308,7 +311,7 @@ function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fast
       # if it has votes, sort and pick the best;
       sorted_vote = sort(collect(votes[idx]), by=x->-x[2])
       push!(best_voted_alleles, loci2alleles[idx][sorted_vote[1][1]])
-      votes_txt = join(["$(loci2alleles[idx][al])($votes)" for (al,votes) in sorted_vote[1:min(20,end)]],",")
+      votes_txt = join(["$(loci2alleles[idx][al])($votes)" for (al,votes) in sorted_vote[1:min(N_SEARCH,end)]],",")
       push!(vote_log, (loci_votes[idx], votes_txt))
       # find if there was a tie:
       if length(sorted_vote) > 1 && sorted_vote[1][2] == sorted_vote[2][2] # there is a tie;
@@ -436,7 +439,7 @@ function write_calls(sample_results, loci, loci2alleles, filename, profile, outp
       # write ties:
       if length(ties) > 0
         for (locus, tied_alleles) in sort(collect(ties), by=x->x[1])
-          ties_txt = join(["$t" for t in tied_alleles],", ")
+          ties_txt = join(["$t" for t in sort(tied_alleles)],", ")
           write(f_ties, "$sample\t$locus\t$ties_txt\n")
         end
       end
@@ -447,32 +450,33 @@ function write_calls(sample_results, loci, loci2alleles, filename, profile, outp
   end
 end
 
-function count_kmers_in_db_only{k}(::Type{DNAKmer{k}}, files, kmer_db)
-  # Count kmers:
-  kmer_count = DefaultDict{DNAKmer{k},Int}(0)
-  for f in files
-    istream = fastq_open(f)
-    while (fq = fastq_read(istream))!=false
-      for (pos, kmer) in each(DNAKmer{k}, DNASequence(fq.sequence.seq), 1)
-        kmer = canonical(kmer)
-        if haskey(kmer_db, kmer)
-          kmer_count[kmer] += 1
-        end
-      end
+function count_kmers_in_fasta_file{k}(::Type{DNAKmer{k}}, file, kmer_count)
+  istream = fasta_open(file)
+  while (fq = fasta_read(istream))!=false
+    for (pos, kmer) in each(DNAKmer{k}, DNASequence(fq.sequence.seq), 1)
+      kmer_count[canonical(kmer)] += 1
     end
   end
-  return kmer_count
 end
 
-function count_kmers{k}(::Type{DNAKmer{k}}, files)
+function count_kmers_in_fastq_file{k}(::Type{DNAKmer{k}}, file, kmer_count)
+  istream = fastq_open(file)
+  while (fq = fastq_read(istream))!=false
+    for (pos, kmer) in each(DNAKmer{k}, DNASequence(fq.sequence.seq), 1)
+      kmer_count[canonical(kmer)] += 1
+    end
+  end
+end
+
+function count_kmers{k}(::Type{DNAKmer{k}}, files, is_fasta=false)
   # Count kmers:
   kmer_count = DefaultDict{DNAKmer{k},Int}(0)
   for f in files
-    istream = fastq_open(f)
-    while (fq = fastq_read(istream))!=false
-      for (pos, kmer) in each(DNAKmer{k}, DNASequence(fq.sequence.seq), 1)
-        kmer_count[canonical(kmer)] += 1
-      end
+    # check type:
+    if is_fasta
+      count_kmers_in_fasta_file(DNAKmer{k}, f, kmer_count)
+    else
+      count_kmers_in_fastq_file(DNAKmer{k}, f, kmer_count)
     end
   end
   return kmer_count
