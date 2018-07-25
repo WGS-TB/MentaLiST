@@ -8,6 +8,7 @@ include("../src/db_graph.jl")
 
 TEST_DIR = (dirname(@__FILE__))
 TMPDIR = mktempdir()
+VERSION = "testing"
 
 # encapsulate in a big test to get a summary of all in the end; if a testset fails, it will show the specific testset results,
 # otherwise will show just the total # of test passes.
@@ -60,7 +61,7 @@ TMPDIR = mktempdir()
 
     profile = nothing
     args = Dict("k" => K, "fasta_files" => l_pneumophila_cgmlst_loci_files)
-    save_db(K, kmer_classification, loci, l_pneumophila_cgmlst_db_file, profile, args)
+    save_db(K, kmer_classification, loci, l_pneumophila_cgmlst_db_file, profile, args, VERSION)
     @test isfile(l_pneumophila_cgmlst_db_file)
   end
 
@@ -83,7 +84,7 @@ TMPDIR = mktempdir()
 
     profile = nothing
     args = Dict("k" => K, "fasta_files" => c_jejuni_pubmlst_loci_files)
-    save_db(K, kmer_classification, loci, c_jejuni_pubmlst_db_file, profile, args)
+    save_db(K, kmer_classification, loci, c_jejuni_pubmlst_db_file, profile, args, VERSION)
     @test isfile(c_jejuni_pubmlst_db_file)
   end
 

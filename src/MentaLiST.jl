@@ -82,6 +82,9 @@ function parse_commandline()
           nargs = '*'
           help = "FastQ input files, one per sample, reverse reads."
           arg_type = String
+        "--fasta"
+          help = "Input files are in FASTA format, instead of the default FASTQs."
+          action = :store_true
     end
 
     ## Common option for all db building commands:
@@ -228,7 +231,7 @@ function download_enterobase(args)
   build_db(args)
 end
 
-function build_db(args)
+function build_db(args, version=VERSION)
   # check if files exist:
   check_files(args["fasta_files"])
   # get arguments and call the kmer db builder for each locus:
@@ -242,10 +245,14 @@ function build_db(args)
   kmer_classification = combine_loci_classification(k, results, loci)
 
   for (index, fasta_file) in enumerate(args["fasta_files"])
-    args["fasta_files"][index] = pop!(split(dirname(fasta_file), "/")) * "/" * basename(fasta_file)
+    scheme_fasta_directory = pop!(split(dirname(fasta_file), "/"))
+    if scheme_fasta_directory == ""
+      scheme_fasta_directory = "."
+    end
+    args["fasta_files"][index] = scheme_fasta_directory * "/" * basename(fasta_file)
   end
   info("Saving DB ...")
-  save_db(k, kmer_classification, loci, db_file, profile, args)
+  save_db(k, kmer_classification, loci, db_file, profile, args, version)
   info("Done!")
 end
 
