@@ -7,7 +7,7 @@ package:
 
 source:
   git_url: https://github.com/WGS-TB/MentaLiST.git
-  git_rev: v0.2.2
+  git_rev: mentalist_v0.2
     
 build:
   skip: True  # [osx]
