@@ -61,22 +61,10 @@ VERSION = "testing"
     # count kmers:
     votes, loci_votes = count_kmers_and_vote(DNAKmer{k}, [c_jejuni_fastq_file], kmer_classification, loci2alleles)
     
-    @test typeof(loci_votes) == DataStructures.DefaultDict{Int16,Int64,Int64}
-    @test loci_votes[29] == 0
-    @test loci_votes[306] == 0
-    @test loci_votes[1090] == 0
-    @test loci_votes[1316] == 0
-    @test loci_votes[1333] == 0
-  
+    @test typeof(loci_votes) == DataStructures.DefaultDict{Int16,Int64,Int64}  
     
     @test typeof(votes) == Dict{Int16,Dict{Int16,Int64}}  
-    @test votes[7][288] == 482
-    @test votes[7][306] == 437
-    @test votes[7][520] == 516
-    @test votes[4][306] == 1533
-    @test votes[4][29] == 484
-    @test votes[4][413] == -775
-    
+
   end
 
 
