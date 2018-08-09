@@ -26,10 +26,10 @@ if __name__ == "__main__":
     for f in param.f:
         # get mutations:
         with open(f[:-2] + "txt") as mutfile:
-            mutations = {locus:nmut for locus, ab, nmut, desc in [l.strip().split("\t") for l in mutfile]}
+            mutations = {locus:nmut for sample, locus, novel_id, ab, nmut, desc in [l.strip().split("\t") for l in mutfile]}
         logger.debug("Opening file %s ..." % f)
         for seq_record in SeqIO.parse(f, "fasta"):
-            locus = seq_record.id
+            locus = "_".join(seq_record.id.split("_")[:-1])
             dna = str(seq_record.seq)
             loci.add(locus)
             novel[locus][dna].append(int(mutations[locus]))
