@@ -108,18 +108,6 @@ VERSION = "testing"
     votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
     @test typeof(votes) == Dict{Int16,Dict{Int16,Int64}}
     @test typeof(loci_votes) == DataStructures.DefaultDict{Int16,Int64,Int64}
-    @test loci_votes[29] == 29212
-    @test loci_votes[306] == 10971
-    @test loci_votes[1090] == 20743
-    @test loci_votes[1316] == 47172
-    @test loci_votes[1333] == 16469
-    @test votes[29][1] == 3815
-    @test votes[29][2] == -640
-    @test votes[29][3] == -24757
-    @test votes[306][2] == -385
-    @test votes[306][18] == -4224
-    @test votes[1090][11] == -1917
-    @test votes[1090][16] == 439
 
     # some parameters:
     kmer_thr, max_mutations, output_votes = 1, 5, true
@@ -160,21 +148,6 @@ VERSION = "testing"
     @test typeof(votes) == Dict{Int16,Dict{Int16,Int64}}
     @test typeof(loci_votes) == DataStructures.DefaultDict{Int16,Int64,Int64}
 
-    @test loci_votes[1] == 3554
-    @test loci_votes[2] == 2065
-    @test loci_votes[3] == 1434
-    @test loci_votes[4] == 2448
-    @test loci_votes[5] == 1683
-    @test loci_votes[6] == 3073
-    @test loci_votes[7] == 1246
-
-    @test votes[7][288] == 485
-    @test votes[7][306] == 440
-    @test votes[7][520] == -551
-    @test votes[4][306] == 1539
-    @test votes[4][29] == 484
-    @test votes[4][413] == -769
-
     # some parameters:
     kmer_thr, max_mutations, output_votes = 2, 5, true
     # call:
@@ -207,21 +180,6 @@ VERSION = "testing"
     votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
     @test typeof(votes) == Dict{Int16,Dict{Int16,Int64}}
     @test typeof(loci_votes) == DataStructures.DefaultDict{Int16,Int64,Int64}
-
-    @test loci_votes[1] == 3554
-    @test loci_votes[2] == 2065
-    @test loci_votes[3] == 1434
-    @test loci_votes[4] == 2448
-    @test loci_votes[5] == 1683
-    @test loci_votes[6] == 3073
-    @test loci_votes[7] == 1246
-
-    @test votes[7][288] == 485
-    @test votes[7][306] == 440
-    @test votes[7][520] == -551
-    @test votes[4][306] == 1539
-    @test votes[4][29] == 484
-    @test votes[4][413] == -769
 
     # some parameters:
     kmer_thr, max_mutations, output_votes = 2, 5, true
