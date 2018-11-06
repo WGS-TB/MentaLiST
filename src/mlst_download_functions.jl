@@ -56,6 +56,7 @@ end
 
 
 @everywhere function _download_to_folder(url, output_dir, overwrite=false, filename=nothing)
+  println("Trying to download: $url")
   filepath = joinpath(output_dir, filename == nothing ? basename(url) : filename)
   if overwrite || (!isfile(filepath) || _older_than_a_day(filepath))
     mkpath(output_dir)
@@ -137,10 +138,10 @@ function _find_cgmlst_id(target_id)
   return nothing
 end
 
-@everywhere function _download_enterobase_locus(locus, output_dir, sp_code, tp_code)
+@everywhere function _download_enterobase_locus(locus, output_dir, url_folder)
   fasta_locus = joinpath(output_dir, "$locus.fa")
   if !isfile(fasta_locus)
-    gzip_locus = _download_to_folder("https://enterobase.warwick.ac.uk/schemes/$sp_code.$tp_code/$locus.fasta.gz", output_dir, false, "$locus.fa.gz")
+    gzip_locus = _download_to_folder("https://enterobase.warwick.ac.uk/schemes/$url_folder/$locus.fasta.gz", output_dir, false, "$locus.fa.gz")
     # gunzip to a FASTA and remove the gzip file;
     f_in = GZip.open(gzip_locus)
     f_out = open(fasta_locus, "w")
@@ -155,16 +156,18 @@ end
 end
 
 function download_enterobase_scheme(scheme, s_type, output_dir, overwrite=false)
-  sp = Dict("E"=>"ESC", "S"=>"SAL", "Y"=>"YER")
+  verbose = Dict("S"=>"Salmonella", "Y"=>"Yersinia", "E"=>"Escherichia/Shigella", "C" => "clostridium")
+  sp = Dict("E"=>"Escherichia", "S"=>"Salmonella", "Y"=>"Yersinia", "C" => "clostridium")
+
   if !haskey(sp, scheme)
-    info("Scheme has to be E, S, or Y.")
+    info("Scheme has to be E, S, Y or C.")
     exit(-1)
   end
-  verbose = Dict("S"=>"Salmonella", "Y"=>"Yersinia", "E"=>"Escherichia/Shigella")
-  sp_code = "$(sp[scheme])wgMLST"
-  tp_code = "$(s_type)MLSTv1"
-  filename = joinpath(dirname(@__FILE__), "../scripts/$(sp_code).txt")
-
+  # Version: empty for wg, v2 for Salmonella cg, v1 for other cg.
+  version = s_type == "wg" ? "" : (scheme == "S" ? "v2" : "v1")
+  scheme_name = "$(s_type)MLST$(version)"
+  url_folder = "$(sp[scheme]).$(scheme_name)"
+  filename = joinpath(dirname(@__FILE__), "../scripts/$(sp[scheme]).txt")
 
   loci = String[]
   open(filename) do f
@@ -175,9 +178,7 @@ function download_enterobase_scheme(scheme, s_type, output_dir, overwrite=false)
       end
     end
   end
-  # loci_files = [_download_enterobase_locus(locus, output_dir, sp_code, tp_code) for locus in loci]
-  loci_files = pmap(locus->_download_enterobase_locus(locus, output_dir, sp_code, tp_code), loci)
-  # println(loci_files)
+  loci_files = pmap(locus->_download_enterobase_locus(locus, output_dir, url_folder), loci)
   return loci_files
 end
 

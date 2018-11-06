@@ -70,14 +70,19 @@ end
   allele_idx::Int16 = 1
   open(FASTAReader{DNASequence}, fastafile) do reader
     while !eof(reader)
-      read!(reader, record)
-      seen = Set{DNAKmer{k}}()
-      for (pos, kmer) in each(DNAKmer{k}, record.seq)
-        can_kmer = canonical(kmer)
-        if !in(can_kmer, seen)
-          push!(kmer_class[can_kmer], allele_idx)
-          push!(seen, can_kmer)
+      try
+        read!(reader, record)
+        seen = Set{DNAKmer{k}}()
+        for (pos, kmer) in each(DNAKmer{k}, record.seq)
+          can_kmer = canonical(kmer)
+          if !in(can_kmer, seen)
+            push!(kmer_class[can_kmer], allele_idx)
+            push!(seen, can_kmer)
+          end
         end
+      catch
+        println("CRITICAL ERROR: Error parsing file $fastafile, at record $(record.name), most likely some unkown characters. Please fix it and try again.")
+        exit(-1)
       end
       # find the separator; will assume that if I see a "_", that's it, otherwise try "-";
       separator = in('_', record.name) ? "_" : "-"

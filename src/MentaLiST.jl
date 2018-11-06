@@ -123,7 +123,7 @@ function parse_commandline()
         arg_type = String
         required = true
     end
-  
+
     # Listing functions, common options:
     s_list = ArgParseSettings()
     @add_arg_table s_list begin
