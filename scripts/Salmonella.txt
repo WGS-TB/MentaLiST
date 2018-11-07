@@ -1,4 +1,11 @@
 Scheme name	Locus tag	Description
+Achtman 7 Gene MLST	aroC	
+Achtman 7 Gene MLST	dnaN	
+Achtman 7 Gene MLST	hemD	
+Achtman 7 Gene MLST	hisD	
+Achtman 7 Gene MLST	purE	
+Achtman 7 Gene MLST	sucA	
+Achtman 7 Gene MLST	thrA	
 cgMLST V2	STMMW_23011 (nrdA)	Ribonucleotide reductase class 1a alpha subunit
 cgMLST V2	STMMW_14251 (ssaS)	EscS/YscS/HrcS family type III secretion system export apparatus protein
 cgMLST V2	STMMW_33821 (yhdG)	tRNA dihydrouridine synthase DusB
@@ -24066,10 +24073,3 @@ wgMLST	ZV79_RS22430	restriction endonuclease
 wgMLST	ZV79_RS22435	hypothetical protein
 wgMLST	ZV79_RS22440	histidine kinase
 wgMLST	ZV79_RS22445 (dcm)	DNA (cytosine-5-)-methyltransferase
-Achtman 7 Gene MLST	aroC	
-Achtman 7 Gene MLST	dnaN	
-Achtman 7 Gene MLST	hemD	
-Achtman 7 Gene MLST	hisD	
-Achtman 7 Gene MLST	purE	
-Achtman 7 Gene MLST	sucA	
-Achtman 7 Gene MLST	thrA	
