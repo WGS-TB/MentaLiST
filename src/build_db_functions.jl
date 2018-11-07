@@ -60,7 +60,10 @@ function combine_loci_classification(k, results, loci)
   l2int = Dict{String,Int16}(locus => idx for (idx, locus) in enumerate(loci))
   weight::Int16 = 0
 
-  for (locus,(kmer_class, allele_ids, kmer_weights)) in zip(loci,results)
+  # allele coverages: how many kmers cover each allele; same format as alleles_list;
+  allele_coverage_per_locus = Int16[]
+
+  for (locus,(kmer_class, allele_ids, kmer_weights, allele_coverages)) in zip(loci,results)
     n_alleles = length(allele_ids)
     half = n_alleles/2
     n_kmers_in_class = 0
@@ -88,24 +91,30 @@ function combine_loci_classification(k, results, loci)
     push!(loci_list, l2int[locus])
     push!(allele_ids_per_locus, n_alleles)
     append!(allele_ids_per_locus, allele_ids)
+    append!(allele_coverage_per_locus, allele_coverages)
+    # println("MIN COV:", m_val, "MAX VAR:", maximum(allele_coverages), "VAR>0: ", [x for x in allele_coverages if x > 0 ])
+    # println("MIN COV:", m_val, " MAX VAR:", maximum(allele_coverages))
   end
-  return (loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus)
+  println("Total kmers: ", length(kmer_list))
+  return (loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus, allele_coverage_per_locus)
+
 end
 
-function kmer_class_for_each_locus(k::Int8, files::Vector{String})
+function kmer_class_for_each_locus(k::Int8, files::Vector{String}, coverage)
   loci = [splitext(basename(file))[1] for file in files]
-  results = pmap(file->build_db_graph(DNAKmer{k}, file), files)
+  results = pmap(file->build_db_graph(DNAKmer{k}, file, coverage), files)
   return results, loci
 end
 
 function save_db(k, kmer_db, loci, filename, profile, args, version)
 
-  loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus = kmer_db
+  loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus, al_coverages = kmer_db
   d = Dict(
     "mentalist_version" => version,
     "loci_list"=> Blosc.compress(loci_list),
     "weight_list" => Blosc.compress(weight_list),
     "allele_ids_per_locus" => Blosc.compress(allele_ids_per_locus),
+    "allele_coverages" => Blosc.compress(al_coverages),
     "kmer_list" => join(kmer_list,""),
     "loci"=>loci,
     "args"=>JSON.json(args)

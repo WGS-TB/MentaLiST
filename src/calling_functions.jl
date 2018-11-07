@@ -15,20 +15,20 @@ function run_calling_pipeline(args)
   # array for saving each sample result:
   sample_results = []
   info("Opening kmer database ... ")
-  kmer_db, loci, loci2alleles, k, profile, build_args = open_db(args["db"])
+  kmer_db, loci, loci2alleles, db_coverage, k, profile, build_args = open_db(args["db"])
 
   # prepend base path of the kmer database on to the relative paths for allele fasta files stored in the db
   for (index, file) in enumerate(build_args["fasta_files"])
     build_args["fasta_files"][index] = joinpath(dirname(args["db"]), file)
   end
   # check if scheme fasta files exist
-  check_files(build_args["fasta_files"])
+    check_files(build_args["fasta_files"])
   # process each sample:
   for (sample, fq_files) in sample_files
     info("Sample: $sample. Opening fastq file(s) and counting kmers ... ")
     kmer_count = count_kmers(DNAKmer{k}, fq_files, args["fasta"])
     info("Voting for alleles ... ")
-    votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
+    votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles, db_coverage)
     info("Calling alleles and novel alleles ...")
     # If fasta are given as input, set kt as 1:
     kt = args["fasta"] ? 1 : args["kt"]
@@ -92,7 +92,7 @@ function open_db(filename)
 
   # Compressed database, open and decompress/decode in memory:
   d = JLD.load("$filename")
-  info("Finished the JLD load.")
+  info("Finished the JLD load, building alleles list...")
   # alleles_list might be split into smaller parts:
   alleles_list = []
   if haskey(d, "alleles_list")
@@ -104,6 +104,7 @@ function open_db(filename)
       idx += 1
     end
   end
+  info("Decompressing weight list...")
   build_args = JSON.parse(d["args"])
   k = build_args["k"]
   loci = d["loci"]
@@ -113,6 +114,7 @@ function open_db(filename)
   allele_ids_per_locus = Blosc.decompress(Int, d["allele_ids_per_locus"])
   kmer_str = d["kmer_list"]
   # build a dict to transform allele idx (1,2,...) to original allele ids:
+  # TODO: loci2alleles can be a vector, since indexes are 1..length(loci)
   loci2alleles = Dict{Int16, Vector{Int16}}(idx => Int16[] for (idx,locus) in enumerate(loci))
   allele_ids_idx = 1
   locus_idx = 1
@@ -125,7 +127,7 @@ function open_db(filename)
   # build the kmer db in the usual format:
   info("Building kmer index ...")
   kmer_classification = Dict{DNAKmer{k}, Vector{Tuple{Int16, Int16, Vector{Int16}}}}()
-# tuple is locus idx, weight, and list of alleles;
+  # tuple is locus idx, weight, and list of alleles;
   loci_list_idx = 1
   allele_list_idx = 1
   kmer_idx = 1
@@ -152,7 +154,18 @@ function open_db(filename)
       push!(kmer_classification[kmer], (locus_idx, weight, current_allele_list))
     end
   end
-  return kmer_classification, loci, loci2alleles, k, profile, build_args
+  # db_coverage: [i][j] -> number of kmers that cover allele j in locus i
+  db_coverage = [Int16[] for (idx,locus) in enumerate(loci)]
+  current_idx = 1
+  if haskey(d, "allele_coverages") # might not exist for older dbs;
+    allele_coverages_list = Blosc.decompress(Int16,d["allele_coverages"])
+    for (idx,locus) in enumerate(loci)
+      n_alleles = length(loci2alleles[idx])
+      db_coverage[idx] = allele_coverages_list[current_idx:current_idx+n_alleles-1]
+      current_idx += n_alleles
+    end
+  end
+  return kmer_classification, loci, loci2alleles, db_coverage, k, profile, build_args
 end
 
 
@@ -182,9 +195,20 @@ function read_alleles(fastafile, ids)
     end
     idx += 1
   end
+  close(istream)
   return alleles
 end
 
+function find_allele(fastafile, wanted_seq)
+  idx = 1
+  for (name, seq) in FastaReader(fastafile)
+    if seq == wanted_seq
+      return idx
+    end
+    idx += 1
+  end
+  return nothing
+end
 
 function LocusNotPresentCall()
   return AlleleCall("0", "", 0.0, 0, "Not present, no kmers found.", EmptyNovelAllele(), [])
@@ -216,84 +240,114 @@ function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fast
 
   # Function to call for each allele
   function call_allele(votes_per_allele, locus_votes, locus, locus2alleles, fasta_file)
+    # given a subset of the voted alleles, find the allele call:
+    function call_from_selected_allele_votes(selected_allele_votes)
+      allele_set = Set([al for (al, votes) in selected_allele_votes])
+      allele_seqs = read_alleles(fasta_file, allele_set)
+      allele_coverage = [AlleleCoverage(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)...) for (al, votes) in selected_allele_votes]
+      # filter to find fully covered alleles:
+      covered = [x for x in allele_coverage if (x.depth >= kmer_thr)] # if I remove alleles with negative votes, I might the reconstruct the same allele on the novel rebuild; better to flag output
+      if length(covered) == 1
+        # choose the only fully covered allele
+        allele_label = locus2alleles[covered[1].allele]
+        allele_votes  = covered[1].votes
+        warning = allele_votes < 0 ? " Call with negative votes: $allele_votes." : ""
+        return LocusPresentCall("$allele_label", covered[1].depth,  "Called allele $allele_label.$warning")
+      end
+      if length(covered) > 1
+        # choose the most voted, but indicate that there are more fully covered that might be possible:
+        allele_label = locus2alleles[covered[1].allele]
+        multiple_alleles = join([locus2alleles[x.allele] for x in covered],", ")
+        multiple_votes = join([x.votes for x in covered],", ")
+        multiple_depth = join([x.depth for x in covered],", ")
+        report_txt = "Multiple possible alleles:$multiple_alleles with depth $multiple_depth and votes $multiple_votes. Most voted ($allele_label) is chosen on call file."
+        alleles_to_check = [("$(locus2alleles[x.allele])", allele_seqs[x.allele], "Multiple alleles present for this locus. Depth:$(x.depth) Votes:$(x.votes)") for x in covered]
+        return MultiplePresentCall("$allele_label", covered[1].depth, report_txt, alleles_to_check)
+      end
+      # got here, no allele is covered; if the uncovered part is small enough, try novel allele
+      # Try to find novel; sort by # of uncovered kmers, smallest to largest
+      sorted_allele_coverage = sort(allele_coverage, by=x->x.uncovered_kmers)
+      uncovered_kmers = sorted_allele_coverage[1].uncovered_kmers
+      covered_kmers = sorted_allele_coverage[1].covered_kmers
+      coverage = covered_kmers / (covered_kmers + uncovered_kmers)
+      # each mutation gives around k uncovered kmers, so if smallest_uncovered > k * max_mutations, then declare missing;
+      if uncovered_kmers > k * max_mutations # consider not present; TODO: better criteria?
+        allele = sorted_allele_coverage[1].allele
+        allele_label = "$(locus2alleles[allele])"
+        depth = sorted_allele_coverage[1].depth
+        report_txt = "Not present; allele $allele_label is the best covered but below threshold with $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers."
+        return UncoveredAlleleCall(report_txt, [(allele_label, allele_seqs[allele], "Best covered allele, but declared not present, with $uncovered_kmers uncovered kmers and coverage $coverage.")])
+      end
+
+      # If gap is small, try to find a novel allele using an existing allele as template;
+      # and filling the 'gaps' of coverage searching for mutations.
+      # sort candidates by smaller # of gaps, then larger vote:
+      sorted_by_gap_allele_coverage = sort(allele_coverage, by=x->(length(x.gap_list),-x.votes))
+      best = sorted_by_gap_allele_coverage[1]
+      # get all templates with same # of gaps:
+      allele_templates = [x for x in sorted_by_gap_allele_coverage if length(x.gap_list) == length(best.gap_list)]
+      candidate_list = [] # list with all candidate novel;
+      for al_cov in allele_templates # al_cov is a struct AlleleCoverage
+        template_seq = allele_seqs[al_cov.allele]
+        novel_allele = correct_template(k, allele_seqs[al_cov.allele], al_cov.gap_list, kmer_count, kmer_thr, max_mutations)
+        novel_allele.template_allele = locus2alleles[al_cov.allele]
+        push!(candidate_list, (novel_allele, al_cov))
+      end
+      # sort by no gaps, then minimum mutations; then more votes
+      sorted_candidates = sort(candidate_list,by=x->(length(x[1].uncorrected_gaps),x[1].n_mutations,-x[2].votes))
+      # get best
+      novel_allele, al_cov = sorted_candidates[1]
+      template_allele_label = "$(novel_allele.template_allele)"
+
+      if length(novel_allele.uncorrected_gaps) == 0
+        # report:
+        mutations_txt = novel_allele.n_mutations > 1 ? "$(novel_allele.n_mutations) mutations" : "$(novel_allele.n_mutations) mutation"
+        mutation_desc = join([describe_mutation(ev) for ev in novel_allele.mutations_list], ", ")
+        # save, closest and novel:
+        alleles_to_check =[(template_allele_label, novel_allele.sequence, "Template for novel allele."),
+          ("Novel", novel_allele.sequence, "$mutations_txt from allele $template_allele_label: $mutation_desc")]
+        report_txt = "Novel, $mutations_txt from allele $template_allele_label: $mutation_desc"
+        return NovelAlleleCall(report_txt, novel_allele, alleles_to_check)
+
+      else # TODO: if all gaps have not been covered, just call directly uncovered? (no novel at all)
+        # did not a fully corrected novel; possibly an uncovered allele, maybe partially corrected; output allele/N
+        report_txt = "Partially covered alelle or novel allele; Best allele $template_allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found. Gaps on positions: $(join(al_cov.gap_list, ','))"
+        alleles_to_check =[("$(novel_allele.template_allele)", novel_allele.sequence, "Best allele $template_allele_label, but partially covered.")]
+        # return PartiallyCoveredAllele("$template_allele_label", round(coverage,4), novel_allele.depth, report_txt, alleles_to_check)
+        return PartiallyCoveredAllele("$template_allele_label", round(coverage,4), 0, report_txt, alleles_to_check) # if it's not 100% covered, then depth=0
+      end
+    end
+
     if locus_votes == 0   # 1st - if no locus votes, no presence:
       return LocusNotPresentCall()
     end
     # Votes: Dict{Int16,Dict{Int16,Int64}}; locus_idx -> { allele_idx -> votes};
 
     sorted_voted_alleles = sort(collect(votes_per_allele), by=x->-x[2]) # sort by max votes for this locus;
-    allele_set = Set([al for (al, votes) in sorted_voted_alleles[1:min(N_SEARCH,end)]])
-    allele_seqs = read_alleles(fasta_file, allele_set)
-    allele_coverage = [AlleleCoverage(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)...) for (al, votes) in sorted_voted_alleles[1:min(N_SEARCH,end)]]
-    # filter to find fully covered alleles:
-    covered = [x for x in allele_coverage if (x.depth >= kmer_thr)] # if I remove alleles with negative votes, I might the reconstruct the same allele on the novel rebuild; better to flag output
-    if length(covered) == 1
-      # choose the only fully covered allele
-      allele_label = locus2alleles[covered[1].allele]
-      allele_votes  = covered[1].votes
-      warning = allele_votes < 0 ? " Call with negative votes: $allele_votes." : ""
-      return LocusPresentCall("$allele_label", covered[1].depth,  "Called allele $allele_label.$warning")
+    tie_idx = 1
+    while tie_idx < length(sorted_voted_alleles) && sorted_voted_alleles[tie_idx+1][2] == sorted_voted_alleles[1][2]
+      tie_idx += 1
     end
-    if length(covered) > 1
-      # choose the most voted, but indicate that there are more fully covered that might be possible:
-      allele_label = locus2alleles[covered[1].allele]
-      multiple_alleles = join([locus2alleles[x.allele] for x in covered],", ")
-      multiple_votes = join([x.votes for x in covered],", ")
-      multiple_depth = join([x.depth for x in covered],", ")
-      report_txt = "Multiple possible alleles:$multiple_alleles with depth $multiple_depth and votes $multiple_votes. Most voted ($allele_label) is chosen on call file."
-      alleles_to_check = [("$(locus2alleles[x.allele])", allele_seqs[x.allele], "Multiple alleles present for this locus. Depth:$(x.depth) Votes:$(x.votes)") for x in covered]
-      return MultiplePresentCall("$allele_label", covered[1].depth, report_txt, alleles_to_check)
-    end
-    # got here, no allele is covered; if the uncovered part is small enough, try novel allele
-    # Try to find novel; sort by # of uncovered kmers, smallest to largest
-    sorted_allele_coverage = sort(allele_coverage, by=x->x.uncovered_kmers)
-    uncovered_kmers = sorted_allele_coverage[1].uncovered_kmers
-    covered_kmers = sorted_allele_coverage[1].covered_kmers
-    coverage = covered_kmers / (covered_kmers + uncovered_kmers)
-    # each mutation gives around k uncovered kmers, so if smallest_uncovered > k * max_mutations, then declare missing;
-    if uncovered_kmers > k * max_mutations # consider not present; TODO: better criteria?
-      allele = sorted_allele_coverage[1].allele
-      allele_label = "$(locus2alleles[allele])"
-      depth = sorted_allele_coverage[1].depth
-      report_txt = "Not present; allele $allele_label is the best covered but below threshold with $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers."
-      return UncoveredAlleleCall(report_txt, [(allele_label, allele_seqs[allele], "Best covered allele, but declared not present, with $uncovered_kmers uncovered kmers and coverage $coverage.")])
-    end
+    # tied_best = [x for x in sorted_voted_alleles if x[2] == sorted_voted_alleles[1][2]]
+    tie_idx +=10 # add a bit more
+    tied_best = sorted_voted_alleles[1:min(tie_idx,end)]
+    allele_call = call_from_selected_allele_votes(tied_best)
 
-    # If gap is small, try to find a novel allele using an existing allele as template;
-    # and filling the 'gaps' of coverage searching for mutations.
-    # sort candidates by smaller # of gaps, then larger vote:
-    sorted_by_gap_allele_coverage = sort(allele_coverage, by=x->(length(x.gap_list),-x.votes))
-    best = sorted_by_gap_allele_coverage[1]
-    # get all templates with same # of gaps:
-    allele_templates = [x for x in sorted_by_gap_allele_coverage if length(x.gap_list) == length(best.gap_list)]
-    candidate_list = [] # list with all candidate novel;
-    for al_cov in allele_templates # al_cov is a struct AlleleCoverage
-      template_seq = allele_seqs[al_cov.allele]
-      novel_allele = correct_template(k, allele_seqs[al_cov.allele], al_cov.gap_list, kmer_count, kmer_thr, max_mutations)
-      novel_allele.template_allele = locus2alleles[al_cov.allele]
-      push!(candidate_list, (novel_allele, al_cov))
-    end
-    # sort by no gaps, then minimum mutations; then more votes
-    sorted_candidates = sort(candidate_list,by=x->(length(x[1].uncorrected_gaps),x[1].n_mutations,-x[2].votes))
-    # get best
-    novel_allele, al_cov = sorted_candidates[1]
-    template_allele_label = "$(novel_allele.template_allele)"
+    # if it is novel; check if it already exists in DB:
+    # if allele_call.allele == "N"
+    #   allele_idx = find_allele(fastafile, wanted_seq)
+    #   if exists != nothing
 
-    if length(novel_allele.uncorrected_gaps) == 0
-      # report:
-      mutations_txt = novel_allele.n_mutations > 1 ? "$(novel_allele.n_mutations) mutations" : "$(novel_allele.n_mutations) mutation"
-      mutation_desc = join([describe_mutation(ev) for ev in novel_allele.mutations_list], ", ")
-      # save, closest and novel:
-      alleles_to_check =[(template_allele_label, novel_allele.sequence, "Template for novel allele."),
-        ("Novel", novel_allele.sequence, "$mutations_txt from allele $template_allele_label: $mutation_desc")]
-      report_txt = "Novel, $mutations_txt from allele $template_allele_label: $mutation_desc"
-      return NovelAlleleCall(report_txt, novel_allele, alleles_to_check)
-
-    else # TODO: if all gaps have not been covered, just call directly uncovered? (no novel at all)
-      # did not a fully corrected novel; possibly an uncovered allele, maybe partially corrected; output allele/N
-      report_txt = "Partially covered alelle or novel allele; Best allele $template_allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found. Gaps on positions: $(join(al_cov.gap_list, ','))"
-      alleles_to_check =[("$(novel_allele.template_allele)", novel_allele.sequence, "Best allele $template_allele_label, but partially covered.")]
-      return PartiallyCoveredAllele("$template_allele_label", round(coverage,4), novel_allele.depth, report_txt, alleles_to_check)
+    # If I did not get a full covered call, or novel, try looking at ALL alleles
+    if (allele_call.depth == 0 || allele_call.allele == "N") && (tie_idx <= length(sorted_voted_alleles))
+      second_call = call_from_selected_allele_votes(sorted_voted_alleles[tie_idx:end])
+      if second_call.depth == 0
+        return allele_call
+      else
+        return second_call
+      end
+    else
+      return allele_call
     end
   end
   # Function to call all alleles by vote only:
@@ -328,7 +382,6 @@ function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fast
 
   # get all calls:
   allele_calls = [call_allele(votes[idx], loci_votes[idx], loci[idx], loci2alleles[idx], fasta_files[idx]) for (idx, locus) in enumerate(loci)]
-# allele_calls = pmap(x->call_allele(x...), [(k, kmer_count, votes[idx], loci_votes[idx], loci[idx], loci2alleles[idx], fasta_files[idx], kmer_thr, max_mutations) for (idx, locus) in enumerate(loci)])
 
   # Also do voting output?
   if output_votes
@@ -457,6 +510,7 @@ function count_kmers_in_fasta_file{k}(::Type{DNAKmer{k}}, file, kmer_count)
       kmer_count[canonical(kmer)] += 1
     end
   end
+  close(istream)
 end
 
 function count_kmers_in_fastq_file{k}(::Type{DNAKmer{k}}, file, kmer_count)
@@ -482,10 +536,11 @@ function count_kmers{k}(::Type{DNAKmer{k}}, files, is_fasta=false)
   return kmer_count
 end
 
-function count_votes(kmer_count, kmer_db, loci2alleles)
+function count_votes(kmer_count, kmer_db, loci2alleles, db_coverage)
 # function count_kmers_and_vote{k}(::Type{DNAKmer{k}}, files, kmer_db, loci2alleles)
   # Now count votes:
   # 0 votes for all alleles everyone at the start:
+  # TODO: also list, instead of DICT?
   votes = Dict(locus_idx => Dict{Int16, Int}(i => 0 for i in 1:length(alleles)) for (locus_idx,alleles) in loci2alleles)
   # votes per locus, to decide presence/absence:
   loci_votes = DefaultDict{Int16, Int}(0)
@@ -500,6 +555,12 @@ function count_votes(kmer_count, kmer_db, loci2alleles)
       end
     end
   end
+  # adjust for allele coverage:
+  # for (locus, allele_votes) in votes
+  #   for al in keys(allele_votes)
+  #     allele_votes[al] = Int(round(allele_votes[al]/db_coverage[locus][al]))
+  #   end
+  # end
   return votes, loci_votes
 end
 
@@ -510,7 +571,7 @@ function sequence_coverage{k}(::Type{DNAKmer{k}}, sequence, kmer_count, kmer_thr
   # find the minimum coverage depth of all kmers of the given variant, and
   # how many kmers are covered/uncovered
   gap_list = Tuple{Int,Int}[]
-  smallest_coverage = 100000
+  smallest_coverage::Int16 = 32766
   covered = 0
   uncovered = 0
 

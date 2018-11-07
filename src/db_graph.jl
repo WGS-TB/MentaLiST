@@ -5,6 +5,8 @@ using DataStructures: DefaultDict
 @everywhere using DataStructures: DefaultDict
 using FastaIO
 @everywhere using FastaIO
+using JuMP, Gurobi
+@everywhere using JuMP, Gurobi
 
 @everywhere function twin{k}(::Type{DNAKmer{k}}, km)
     DNAKmer{k}(Bio.Seq.reverse_complement(DNASequence("$km")))
@@ -68,6 +70,8 @@ end
   kmer_class = DefaultDict{DNAKmer{k}, Vector{Int16}}(() -> Int16[])
   allele_ids = Int16[]
   allele_idx::Int16 = 1
+  n_kmers = Int[]
+  seen = Set{DNAKmer{k}}()
   open(FASTAReader{DNASequence}, fastafile) do reader
     while !eof(reader)
       try
@@ -84,6 +88,7 @@ end
         println("CRITICAL ERROR: Error parsing file $fastafile, at record $(record.name), most likely some unkown characters. Please fix it and try again.")
         exit(-1)
       end
+      push!(n_kmers, length(seen)) # number of unique kmers for this allele;
       # find the separator; will assume that if I see a "_", that's it, otherwise try "-";
       separator = in('_', record.name) ? "_" : "-"
       # update idx; the counter idx is incremental (1,2, ...) because we need the array sorted.
@@ -93,15 +98,100 @@ end
       allele_idx += 1
     end
   end
-  return kmer_class, allele_ids
+  return kmer_class, allele_ids, n_kmers
 end
 
-@everywhere function build_db_graph{k}(::Type{DNAKmer{k}}, fastafile)
-  # get kmers and colors (alleles)
-  kmer_class, allele_ids = find_all_kmer_colors(DNAKmer{k}, fastafile)
+@everywhere function kmer_coverage_ilp(locus, kmer_class, allele_ids, coverages)
+  # m = Model(solver=GurobiSolver(Presolve=0))
+  # one minute at most per locus, gap=0.1, no need to have optimal per se;
+  # One thread per solve, since every ILP is already being run in parallel.
+  m = Model(solver=GurobiSolver(OutputFlag=0, MIPGap=0.1, TimeLimit=1200, Threads=1))
+  n_kmer = length(kmer_class)
+  n_alleles = length(allele_ids)
+  # kmer decision variable:
+  @variable(m, x[1:n_kmer], Bin)
+  @variable(m, c[1:n_alleles], Int)
+  # coverage constraints:
+  kmer_list = collect(keys(kmer_class))
+  kmer_cover = DefaultDict{Int,Vector{Int}}(() -> Int[]) # allele -> list of kmers that cover it
+  for (i, kmer) in enumerate(kmer_list)
+    for al in kmer_class[kmer]
+      push!(kmer_cover[al], i)
+    end
+  end
+  # define coverage:
+  for j in 1:n_alleles
+    @constraint(m, c[j] == sum(x[i] for i in kmer_cover[j]))
+  end
+  # min coverage:
+  for j in 1:n_alleles
+    @constraint(m, c[j] >= coverages[j])
+    # @constraint(m, c[j] == coverages[j])
+  end
+  # Forcing same coverage: (takes much longer, get many more kmers; better to store coverage)
+  # Update: consider the cardinality of the kmers, to minimize it also:
+  # @variable(m, max_card, Int) # max cardinality of the selected kmers
+  # for (i, kmer) in enumerate(kmer_list)
+  #   @constraint(m, max_card >= x[i] * length(kmer_class[kmer]))
+  # end
+  # minimize # of selected kmers:
+  @objective(m, Min, sum(x[i] for i in 1:n_kmer))
+  # @objective(m, Min, sum(x[i] for i in 1:n_kmer) + 100000*max_card)
+  # TODO: e parameters works well, reduces variance but increases kmer number as expected.
+  status = solve(m)
+  if status == :Infeasible
+    return nothing
+  end
+  # println("Objective value: ", getobjectivevalue(m))
+  # for (i,kmer) in enumerate(kmer_list)
+  #   if getvalue(x[i]) == 1
+  #     println("$kmer : $(kmer_class[kmer])")
+  #   end
+  # end
+  # println(join([Int(round(getvalue(c[j]),0)) for j in 1:n_alleles],", "))
+  try
+    kmers = [kmer_list[i] for i in 1:n_kmer if getvalue(x[i]) == 1]
+    coverages = [Int16(round(getvalue(c[j]))) for j in 1:n_alleles]
+    return kmers, coverages
+  catch
+    println("What happened??? -> LP status: $status LOCUS:$locus.")
+    exit()
+  end
+  # return kmers, coverages, Int16(round(getvalue(max_card)))
+end
 
-  contig_list = all_contigs(DNAKmer{k}, keys(kmer_class))
-  # select 1 kmer per contig, and set weights:
+
+@everywhere function build_db_graph{k}(::Type{DNAKmer{k}}, fastafile, coverage_p=1)
+  # get kmers and colors (alleles)
+  kmer_class, allele_ids, n_kmers = find_all_kmer_colors(DNAKmer{k}, fastafile)
+  locus = splitext(basename(fastafile))[1]
+
+  # db Graph from all kmers:
+  # contig_list = all_contigs(DNAKmer{k}, keys(kmer_class))
+  # println("$locus\tNA\tAll kmers\t$(length(kmer_class))")
+  # println("$locus\tNA\tdb Graph\t$(length(contig_list))")
+
+  # Solve a coverage ILP to find the kmers:
+  selected_kmers = DNAKmer{k}[]
+  actual_coverages = []
+  # Coverage per allele:
+  coverages = [ Int(round(n_k * coverage_p)) for n_k in n_kmers]
+  # If coverage < 1, solve the ilp, otherwise just select all keys (all kmers)
+  selected_kmers, actual_coverages = coverage_p < 1 ? kmer_coverage_ilp(locus, kmer_class, allele_ids, coverages) : (keys(kmer_class), coverages)
+  # filter more kmers with de Bruijn graph contigs
+  filtered_kmer_class, kmer_weights = filter_kmers_with_db_graph(DNAKmer{k}, kmer_class, selected_kmers)
+  # debug log:
+  sel_kmers, contig_kmers = length(selected_kmers), length(filtered_kmer_class)
+  # println("$locus\t$coverage_p\tAll kmers\t$sel_kmers")
+  # println("$locus\t$coverage_p\tdb Graph\t$contig_kmers")
+
+  return (filtered_kmer_class, allele_ids, kmer_weights, actual_coverages)
+
+end
+
+@everywhere function filter_kmers_with_db_graph{k}(::Type{DNAKmer{k}}, kmer_class, selected_kmers)
+  # select 1 kmer per contig and set weight as length of contig; save kmers in filtered_kmer_class
+  contig_list = all_contigs(DNAKmer{k}, selected_kmers)
   kmer_weights = Dict{UInt64, Int}() # Kmer is converted to UInt64, because DNAKmer apparently does not support write(), needed for the parallel pmap() call;
   filtered_kmer_class = Dict{UInt64, Vector{Int16}}()
   for contig in contig_list
@@ -110,5 +200,5 @@ end
       kmer_weights[kmer_uint] = length(contig)
       filtered_kmer_class[kmer_uint] = kmer_class[kmer]
   end
-  return (filtered_kmer_class, allele_ids, kmer_weights)
+  return filtered_kmer_class, kmer_weights
 end

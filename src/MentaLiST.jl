@@ -2,7 +2,7 @@
 using Lumberjack
 using ArgParse
 
-VERSION = "0.2.4"
+VERSION = "0.3"
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -102,8 +102,11 @@ function parse_commandline()
         arg_type = Int
         default = 2
         help = "Number of threads used in parallel."
+      "-c", "--allele_coverage"
+       arg_type = Float64
+       default = 1.0
+       help = "Minimum percentage of allele coverage in number of kmers of each allele."
     end
-
     # Build DB from FASTA, options:
     import_settings(s["build_db"], s_db)
     @add_arg_table s["build_db"] begin
@@ -239,7 +242,7 @@ function build_db(args, version=VERSION)
   db_file = args["db"]
   profile = args["profile"]
   info("Opening FASTA files ... ")
-  results, loci = kmer_class_for_each_locus(k, args["fasta_files"])
+  results, loci = kmer_class_for_each_locus(k, args["fasta_files"], args["allele_coverage"])
   # Combine results:
   info("Combining results for each locus ...")
   kmer_classification = combine_loci_classification(k, results, loci)
