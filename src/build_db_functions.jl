@@ -95,7 +95,6 @@ function combine_loci_classification(k, results, loci)
     # println("MIN COV:", m_val, "MAX VAR:", maximum(allele_coverages), "VAR>0: ", [x for x in allele_coverages if x > 0 ])
     # println("MIN COV:", m_val, " MAX VAR:", maximum(allele_coverages))
   end
-  println("Total kmers: ", length(kmer_list))
   return (loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus, allele_coverage_per_locus)
 
 end
