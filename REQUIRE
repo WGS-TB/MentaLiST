@@ -7,3 +7,5 @@ Lumberjack
 FastaIO
 JLD
 DataStructures
+JuMP
+Gurobi
