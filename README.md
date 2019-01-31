@@ -28,9 +28,24 @@ We introduce MentaLiST, a new MLST caller, based on a k-mer counting algorithm a
 
 ### Linux
 
-The easiest way of installing MentaLiST is by creating a new environment with [Conda](https://conda.io/docs/). To create a new conda environment that includes MentaLiST, run:
+**Note: We've received reports that the current conda builds of MentaLiST are broken. Until this is resolved, we recommend installing an [official Julia-0.6 binary](https://julialang.org/downloads/oldreleases.html) and cloning this repo to obtain the MentaLiST source. See the macOS installation instructions below for more detail.**
+
+The easiest way of installing MentaLiST is by creating a new environment with [Conda](https://conda.io/docs/). 
+
+Ensure that you have both the `conda-forge` and `bioconda` channels enabled:
+
 ```
-conda create -n mentalist -c bioconda mentalist
+conda config --show channels
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+```
+
+To create a new conda environment called `mentalist` that includes MentaLiST, run:
+
+```
+conda create -n mentalist mentalist
 ```
 
 then activate it by running:
