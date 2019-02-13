@@ -458,7 +458,7 @@ function write_calls(sample_results, loci, loci2alleles, filename, profile, outp
   # now write the fasta:
   open("$filename.novel.fa", "w") do f
     for (locus, seq) in novel_to_fasta
-      desc = "Seen in $(times_seen[seq]) sample(s)."
+      desc = "Seen in $(times_seen[seq]) sample(s)"
       write(f, ">$(locus)_N$(novel_id[seq]) $desc.\n$(wrap(seq, width=120))\n")
     end
   end

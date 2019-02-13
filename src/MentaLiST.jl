@@ -7,6 +7,7 @@ exec julia --color=yes --startup-file=no "${BASH_SOURCE[0]}" "$@"
 using ArgParse
 using Distributed
 using Printf
+using Pkg
 
 VERSION = "0.3.0"
 
@@ -287,45 +288,44 @@ end
 
 args = parse_commandline()
 # determine command:
-if args["%COMMAND%"] == "call"
+cmd = args["%COMMAND%"]
+if cmd == "call"
   include("calling_functions.jl")
-  call_mlst(args["call"])
+  call_mlst(args[cmd])
 
-elseif args["%COMMAND%"] == "build_db"
-  addprocs(args["build_db"]["threads"])
+elseif cmd == "build_db"
+  addprocs(args[cmd]["threads"])
   include("build_db_functions.jl")
-  build_db(args["build_db"])
+  build_db(args[cmd])
 
-elseif args["%COMMAND%"] == "db_info"
-  import JLD: load
-  import JSON
-  import Blosc
-  db_info(args["db_info"])
+elseif cmd == "db_info"
+  import JLD: load, JSON, Blosc
+  db_info(args[cmd])
 
-elseif args["%COMMAND%"] == "list_pubmlst"
+elseif cmd == "list_pubmlst"
   include("mlst_download_functions.jl")
-  list_pubmlst(args["list_pubmlst"])
+  list_pubmlst(args[cmd])
 
-elseif args["%COMMAND%"] == "download_pubmlst"
+elseif cmd == "download_pubmlst"
   include("mlst_download_functions.jl")
-  addprocs(args["download_pubmlst"]["threads"])
+  addprocs(args[cmd]["threads"])
   include("build_db_functions.jl")
-  download_pubmlst(args["download_pubmlst"])
+  download_pubmlst(args[cmd])
 
-elseif args["%COMMAND%"] == "list_cgmlst"
+elseif cmd == "list_cgmlst"
   include("mlst_download_functions.jl")
-  list_cgmlst(args["list_cgmlst"])
+  list_cgmlst(args[cmd])
 
-elseif args["%COMMAND%"] == "download_cgmlst"
+elseif cmd == "download_cgmlst"
   include("mlst_download_functions.jl")
-  addprocs(args["download_cgmlst"]["threads"])
+  addprocs(args[cmd]["threads"])
   include("build_db_functions.jl")
-  download_cgmlst(args["download_cgmlst"])
+  download_cgmlst(args[cmd])
 
-elseif args["%COMMAND%"] == "download_enterobase"
-  addprocs(args["download_enterobase"]["threads"])
+elseif cmd == "download_enterobase"
+  addprocs(args[cmd]["threads"])
   include("mlst_download_functions.jl")
   include("build_db_functions.jl")
-  download_enterobase(args["download_enterobase"])
+  download_enterobase(args[cmd])
 
 end
