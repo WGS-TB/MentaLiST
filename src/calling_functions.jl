@@ -1,10 +1,13 @@
-# using Bio.Seq: BioSequence, DNASequence, DNAAlphabet, DNAKmer, canonical, FASTASeqRecord, FASTAReader, each, neighbors
-using Bio.Seq: BioSequence, DNASequence, DNAAlphabet, DNAKmer, canonical, each
+using BioSequences
 using DataStructures: DefaultDict, OrderedDict
+
 using FastaIO
-using OpenGene: fastq_open, fastq_read, fasta_open, fasta_read
+# using OpenGene: fastq_open, fastq_read, fasta_open, fasta_read
 using TextWrap: wrap
 import JLD: load, save
+import Blosc
+import JSON
+import GZip
 ### Main calling function:
 function run_calling_pipeline(args)
   # get samples/fastq files from command line parameters:
@@ -14,7 +17,7 @@ function run_calling_pipeline(args)
   check_files([args["db"];[fastq for fq_files in values(sample_files) for fastq in fq_files]])
   # array for saving each sample result:
   sample_results = []
-  info("Opening kmer database ... ")
+  @info("Opening kmer database ... ")
   kmer_db, loci, loci2alleles, db_coverage, k, profile, build_args = open_db(args["db"])
 
   # prepend base path of the kmer database on to the relative paths for allele fasta files stored in the db
@@ -25,25 +28,25 @@ function run_calling_pipeline(args)
     check_files(build_args["fasta_files"])
   # process each sample:
   for (sample, fq_files) in sample_files
-    info("Sample: $sample. Opening fastq file(s) and counting kmers ... ")
+    @info("Sample: $sample. Opening fastq file(s) and counting kmers ... ")
     kmer_count = count_kmers(DNAKmer{k}, fq_files, args["fasta"])
-    info("Voting for alleles ... ")
+    @info("Voting for alleles ... ")
     votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles, db_coverage)
-    info("Calling alleles and novel alleles ...")
+    @info("Calling alleles and novel alleles ...")
     # If fasta are given as input, set kt as 1:
     kt = args["fasta"] ? 1 : args["kt"]
-    allele_calls, voting_result = call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], kt, args["mutation_threshold"], args["output_votes"])
+    allele_calls, voting_result = call_alleles(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], kt, args["mutation_threshold"], args["output_votes"])
     push!(sample_results, (sample, allele_calls, voting_result))
   end
-  info("Writing output ...")
+  @info("Writing output ...")
   write_calls(sample_results, loci, loci2alleles, args["o"], profile, args["output_special"], args["output_votes"])
 
-  info("Done.")
+  @info("Done.")
 end
 
 
 ## Helper structs:
-type AlleleCoverage
+struct AlleleCoverage
   allele::Int16
   votes::Int64
   depth::Int16
@@ -52,7 +55,7 @@ type AlleleCoverage
   gap_list::Vector{Tuple{Int16,Int16}}
 end
 
-type NovelAllele
+mutable struct NovelAllele
   template_allele::Int
   sequence::String
   n_mutations::Int8
@@ -65,7 +68,7 @@ function EmptyNovelAllele()
   return NovelAllele(-1,"",0,[],0,[])
 end
 
-type AlleleCall
+struct AlleleCall
   allele::String
   flag::String
   coverage::Float16
@@ -91,8 +94,8 @@ function open_db(filename)
   end
 
   # Compressed database, open and decompress/decode in memory:
-  d = JLD.load("$filename")
-  info("Finished the JLD load, building alleles list...")
+  d = load("$filename")
+  @info("Finished the JLD load, building alleles list...")
   # alleles_list might be split into smaller parts:
   alleles_list = []
   if haskey(d, "alleles_list")
@@ -104,7 +107,7 @@ function open_db(filename)
       idx += 1
     end
   end
-  info("Decompressing weight list...")
+  @info("Decompressing weight list...")
   build_args = JSON.parse(d["args"])
   k = build_args["k"]
   loci = d["loci"]
@@ -125,7 +128,7 @@ function open_db(filename)
     locus_idx += 1
   end
   # build the kmer db in the usual format:
-  info("Building kmer index ...")
+  @info("Building kmer index ...")
   kmer_classification = Dict{DNAKmer{k}, Vector{Tuple{Int16, Int16, Vector{Int16}}}}()
   # tuple is locus idx, weight, and list of alleles;
   loci_list_idx = 1
@@ -188,21 +191,25 @@ end
 function read_alleles(fastafile, ids)
   alleles = Dict{Int, String}()
   idx = 1
-  istream = fasta_open(fastafile)
-  while (fq = fasta_read(istream))!=false
+  reader = FASTA.Reader(open(fastafile, "r"))
+  record = FASTA.Record()
+  while !eof(reader)
+    read!(reader, record)
     if in(idx, ids)
-      alleles[idx] = fq.sequence.seq
+      alleles[idx] = FASTA.sequence(record)
     end
     idx += 1
   end
-  close(istream)
   return alleles
 end
 
 function find_allele(fastafile, wanted_seq)
   idx = 1
-  for (name, seq) in FastaReader(fastafile)
-    if seq == wanted_seq
+  reader = FASTA.Reader(open(fastafile, "r"))
+  record = FASTA.Record()
+  while !eof(reader)
+    read!(reader, record)
+    if FASTA.sequence(fastafile) == wanted_seq
       return idx
     end
     idx += 1
@@ -236,7 +243,7 @@ function PartiallyCoveredAllele(call, coverage, depth, report_txt, alleles_to_ch
 end
 
 N_SEARCH = 40 # number of alleles to search, in order of voting;
-function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fasta_files, kmer_thr, max_mutations, output_votes)
+function call_alleles(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci, loci2alleles, fasta_files, kmer_thr, max_mutations, output_votes) where {k}
 
   # Function to call for each allele
   function call_allele(votes_per_allele, locus_votes, locus, locus2alleles, fasta_file)
@@ -289,7 +296,7 @@ function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fast
       candidate_list = [] # list with all candidate novel;
       for al_cov in allele_templates # al_cov is a struct AlleleCoverage
         template_seq = allele_seqs[al_cov.allele]
-        novel_allele = correct_template(k, allele_seqs[al_cov.allele], al_cov.gap_list, kmer_count, kmer_thr, max_mutations)
+        novel_allele = correct_template(DNAKmer{k}, allele_seqs[al_cov.allele], al_cov.gap_list, kmer_count, kmer_thr, max_mutations)
         novel_allele.template_allele = locus2alleles[al_cov.allele]
         push!(candidate_list, (novel_allele, al_cov))
       end
@@ -313,8 +320,7 @@ function call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, fast
         # did not a fully corrected novel; possibly an uncovered allele, maybe partially corrected; output allele/N
         report_txt = "Partially covered alelle or novel allele; Best allele $template_allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found. Gaps on positions: $(join(al_cov.gap_list, ','))"
         alleles_to_check =[("$(novel_allele.template_allele)", novel_allele.sequence, "Best allele $template_allele_label, but partially covered.")]
-        # return PartiallyCoveredAllele("$template_allele_label", round(coverage,4), novel_allele.depth, report_txt, alleles_to_check)
-        return PartiallyCoveredAllele("$template_allele_label", round(coverage,4), 0, report_txt, alleles_to_check) # if it's not 100% covered, then depth=0
+        return PartiallyCoveredAllele("$template_allele_label", round(coverage,digits=4), 0, report_txt, alleles_to_check) # if it's not 100% covered, then depth=0
       end
     end
 
@@ -452,7 +458,7 @@ function write_calls(sample_results, loci, loci2alleles, filename, profile, outp
   # now write the fasta:
   open("$filename.novel.fa", "w") do f
     for (locus, seq) in novel_to_fasta
-      desc = "Seen in $(times_seen[seq]) sample$(times_seen[seq] > 1 ? "s": "")"
+      desc = "Seen in $(times_seen[seq]) sample(s)."
       write(f, ">$(locus)_N$(novel_id[seq]) $desc.\n$(wrap(seq, width=120))\n")
     end
   end
@@ -503,26 +509,40 @@ function write_calls(sample_results, loci, loci2alleles, filename, profile, outp
   end
 end
 
-function count_kmers_in_fasta_file{k}(::Type{DNAKmer{k}}, file, kmer_count)
-  istream = fasta_open(file)
-  while (fq = fasta_read(istream))!=false
-    for (pos, kmer) in each(DNAKmer{k}, DNASequence(fq.sequence.seq), 1)
-      kmer_count[canonical(kmer)] += 1
+function count_kmers_in_fasta_file(::Type{DNAKmer{k}}, file, kmer_count) where {k}
+  reader = FASTA.Reader(open(fastq_file, "r"))
+	record = FASTA.Record()
+  while !eof(reader)
+      read!(reader, record)
+      for (pos, kmer) in each(DNAKmer{k}, FASTA.sequence(record))
+        kmer_count[canonical(kmer)] += 1
+      end
     end
-  end
-  close(istream)
 end
 
-function count_kmers_in_fastq_file{k}(::Type{DNAKmer{k}}, file, kmer_count)
-  istream = fastq_open(file)
-  while (fq = fastq_read(istream))!=false
-    for (pos, kmer) in each(DNAKmer{k}, DNASequence(fq.sequence.seq), 1)
-      kmer_count[canonical(kmer)] += 1
+function count_kmers_in_fastq_file(::Type{DNAKmer{k}}, fastq_file, kmer_count) where {k}  
+  reader = FASTQ.Reader(endswith(fastq_file, ".gz") ? GZip.open(fastq_file, "r") : open(fastq_file, "r"))
+  record = FASTQ.Record()
+  while !eof(reader)
+      read!(reader, record)
+      for (pos, kmer) in each(DNAKmer{k}, FASTQ.sequence(record))
+        kmer_count[canonical(kmer)] += 1
+      end
     end
-  end
 end
 
-function count_kmers{k}(::Type{DNAKmer{k}}, files, is_fasta=false)
+function count_kmers_in_fastq_file(::Type{DNAKmer{k}}, fastq_file, kmer_count) where {k}
+  reader = FASTQ.Reader(endswith(fastq_file, ".gz") ? GZip.open(fastq_file, "r") : open(fastq_file, "r"))
+  record = FASTQ.Record()
+  while !eof(reader)
+      read!(reader, record)
+      for (pos, kmer) in each(DNAKmer{k}, FASTQ.sequence(record))
+        kmer_count[canonical(kmer)] += 1
+      end
+    end
+end
+
+function count_kmers(::Type{DNAKmer{k}}, files, is_fasta=false) where {k}
   # Count kmers:
   kmer_count = DefaultDict{DNAKmer{k},Int}(0)
   for f in files
@@ -565,9 +585,8 @@ function count_votes(kmer_count, kmer_db, loci2alleles, db_coverage)
 end
 
 # Calling:
-function sequence_coverage{k}(::Type{DNAKmer{k}}, sequence, kmer_count, kmer_thr=6)
+function sequence_coverage(::Type{DNAKmer{k}}, sequence, kmer_count, kmer_thr=6) where {k}
   # TODO: not using the gap list anymore, just for debug. Eventually delete!
-
   # find the minimum coverage depth of all kmers of the given variant, and
   # how many kmers are covered/uncovered
   gap_list = Tuple{Int,Int}[]
@@ -621,7 +640,7 @@ function sequence_coverage{k}(::Type{DNAKmer{k}}, sequence, kmer_count, kmer_thr
   return smallest_coverage, covered, uncovered, merged_gap_list
 end
 
-function cover_sequence_gap{k}(::Type{DNAKmer{k}}, sequence, kmer_count, kmer_thr=8, max_mutations=4)
+function cover_sequence_gap(::Type{DNAKmer{k}}, sequence, kmer_count, kmer_thr=8, max_mutations=4) where {k}
   gap_cover_list = []
   found = Set{String}()
   function scan_variant(n_mut, sequence, events, start_pos=1)
@@ -728,7 +747,7 @@ end
 # struct CorrectedTemplate
 #
 # end
-function correct_template(k, template_seq, gap_list, kmer_count, kmer_thr, max_mutations)
+function correct_template(::Type{DNAKmer{k}}, template_seq, gap_list, kmer_count, kmer_thr, max_mutations) where {k}
   function find_next_gap(sequence, skip=1)
     in_gap = false
     gap_start = 0
@@ -859,9 +878,10 @@ function lcp(str::Vector{String})
     print(r, str[1][i])
     i += 1
   end
-  return strip(basename(String(r)),['_','.','-'])
+  return strip(basename(String(take!(r))),['_','.','-'])
 end
+
 # # Remove fastq
 function remove_fastq_ext(str)
-  return replace(str,  r"\.(fastq|fq)(\.gz)?", "")
-  end
+  return replace(str,  r"\.(fastq|fq)(\.gz)?" => "")
+end

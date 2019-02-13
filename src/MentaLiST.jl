@@ -1,6 +1,12 @@
-#!/usr/bin/env julia
-using Lumberjack
+# Alternative shebang:
+#!/bin/bash
+# -*- mode: julia -*-
+#=
+exec julia --color=yes --startup-file=no "${BASH_SOURCE[0]}" "$@"
+=#
 using ArgParse
+using Distributed
+using Printf
 
 VERSION = "0.3.0"
 
@@ -98,7 +104,7 @@ function parse_commandline()
         help = "Kmer size"
         required = true
         arg_type = Int8
-      "--threads"
+      "--threads" # disabled for julia 1.1, the current syntax does not seem to work.
         arg_type = Int
         default = 2
         help = "Number of threads used in parallel."
@@ -188,12 +194,9 @@ function check_files(files)
 end
 
 ### Error FUNCTIONS
-function exit_error(msg)
-  try
-    Lumberjack.error(msg)
-  catch
-    println("exiting ...")
-  end
+@everywhere function exit_error(msg)
+  @error(msg)
+  println("exiting ...")
   exit(-1)
 end
 
@@ -208,7 +211,7 @@ end
 
 function download_pubmlst(args)
   loci_files, profile_file = download_pubmlst_scheme(args["scheme"], args["output"])
-  info("Building the k-mer database ...")
+  @info "Building the k-mer database ..."
   args["fasta_files"] = loci_files
   args["profile"] = profile_file
   build_db(args)
@@ -220,7 +223,7 @@ end
 
 function download_cgmlst(args)
   loci_files = download_cgmlst_scheme(args["scheme"], args["output"])
-  info("Building the k-mer database ...")
+  @info "Building the k-mer database ..."
   args["fasta_files"] = loci_files
   args["profile"] = nothing
   build_db(args)
@@ -228,7 +231,7 @@ end
 
 function download_enterobase(args)
   loci_files = download_enterobase_scheme(args["scheme"], args["type"], args["output"])
-  info("Building the k-mer database ...")
+  @info "Building the k-mer database ..."
   args["fasta_files"] = loci_files
   args["profile"] = nothing
   build_db(args)
@@ -241,11 +244,11 @@ function build_db(args, version=VERSION)
   k::Int8 = args["k"]
   db_file = args["db"]
   profile = args["profile"]
-  info("Opening FASTA files ... ")
-  results, loci = kmer_class_for_each_locus(k, args["fasta_files"], args["allele_coverage"])
+  @info "Opening FASTA files ... "
+  results, loci = kmer_class_for_each_locus(DNAKmer{k}, args["fasta_files"], args["allele_coverage"])
   # Combine results:
-  info("Combining results for each locus ...")
-  kmer_classification = combine_loci_classification(k, results, loci)
+  @info "Combining results for each locus ..."
+  kmer_classification = combine_loci_classification(DNAKmer{k}, results, loci)
 
   for (index, fasta_file) in enumerate(args["fasta_files"])
     scheme_fasta_directory = pop!(split(dirname(fasta_file), "/"))
@@ -254,17 +257,17 @@ function build_db(args, version=VERSION)
     end
     args["fasta_files"][index] = scheme_fasta_directory * "/" * basename(fasta_file)
   end
-  info("Saving DB ...")
-  save_db(k, kmer_classification, loci, db_file, profile, args, version)
-  info("Done!")
+  @info "Saving DB ..."
+  save_db(DNAKmer{k}, kmer_classification, loci, db_file, profile, args, version)
+  @info "Done!"
 end
 
 function db_info(args)
   filename = args["db"]
-  info("Opening kmer database ... ")
+  @info "Opening kmer database ... "
   # Compressed database, open and decompress/decode in memory:
-  d = JLD.load("$filename")
-  info("Finished the JLD load.")
+  d = load("$filename")
+  @info "Finished the JLD load."
   build_args = JSON.parse(d["args"])
   k = build_args["k"]
   loci = d["loci"]
@@ -295,6 +298,8 @@ elseif args["%COMMAND%"] == "build_db"
 
 elseif args["%COMMAND%"] == "db_info"
   import JLD: load
+  import JSON
+  import Blosc
   db_info(args["db_info"])
 
 elseif args["%COMMAND%"] == "list_pubmlst"
