@@ -26,9 +26,13 @@ We introduce MentaLiST, a new MLST caller, based on a k-mer counting algorithm a
 
 ## Installation
 
-### Linux
+There are two ways to install MentaLiST. The simplest way is with `conda`, which installs Julia and Python environments with all the necessary requirements automatically. Currently, this is only available for Linux. For macOS, please follow the manual installation. 
 
-**Note: We've received reports that the current conda builds of MentaLiST are broken. Until this is resolved, we recommend installing an [official Julia-0.6 binary](https://julialang.org/downloads/oldreleases.html) and cloning this repo to obtain the MentaLiST source. See the macOS installation instructions below for more detail.**
+The other way is by manually downloading and installing Julia, and the required libraries.
+
+### Conda installation
+
+**Note: We've received reports that the current conda builds of MentaLiST are broken. MentaLiST was recently updated to run on Julia 1.1, so these builds are quite out-of-date in respect with the current GitHub version. Until this is resolved, we recommend installing MentaLiST with the manual installation, as described below. **
 
 The easiest way of installing MentaLiST is by creating a new environment with [Conda](https://conda.io/docs/). 
 
@@ -63,28 +67,33 @@ The conda environment can be deactivated by running:
 ```
  source deactivate 
 ```
-### macOS (+10.8)
 
-There is currently no conda recipe for julia on macOS, so a more manual installation process is required.
+### Manual Installation
 
-1. Download the [julia-0.6.2.dmg](https://julialang-s3.julialang.org/bin/mac/x64/0.6/julia-0.6.2-mac64.dmg) file from julialang.org and install it by dragging the `Julia-0.6.app` bundle into your Applications folder.
-2. Launch the `Julia-0.6` application and install all of the dependencies listed in the [REQUIRE](REQUIRE) file:
+MentaLiST is written in Julia, and currently runs on versions >= 1.0. If you don't have it already, install an [official Julia-1.1 binary](https://julialang.org/downloads/) or more recent version.
 
-```julia
-julia> Pkg.update()
-julia> Pkg.add("Bio")
-julia> Pkg.add("OpenGene")
-julia> Pkg.add("Logging")
+Then, clone this repo to obtain the MentaLiST source. After that, run Julia-1.1 and install the required packages listed in the REQUIRE file. For macOS, you'll have to drag the `Julia-1.1.app` bundle from the .dmg file into your Applications folder, and Launch the app.
+You can also add `/Applications/Julia-1.1.app/Contents/Resources/julia/bin/julia` to your `PATH` 
+
+```
+julia
+julia> using Pkg
 julia> Pkg.add("ArgParse")
-julia> Pkg.add("Lumberjack")
-julia> Pkg.add("FastaIO")
-julia> Pkg.add("JLD")
+julia> Pkg.add("BioSequences")
+julia> Pkg.add("JSON")
 julia> Pkg.add("DataStructures")
+julia> Pkg.add("JLD")
+julia> Pkg.add("GZip")
+julia> Pkg.add("Blosc")
+julia> Pkg.add("FileIO")
+julia> Pkg.add("TextWrap")
+julia> Pkg.add("LightXML")
+julia> # Optional packages; you will need a Gurobi license. 
 julia> Pkg.add("JuMP")
 julia> Pkg.add("Gurobi")
 ```
-3. Add `/Applications/Julia-0.6.app/Contents/Resources/julia/bin/julia` to your `PATH` 
-4. Clone the MentaLiST git repostory (https://github.com/WGS-TB/MentaLiST.git). MentaLiST can be run directly from the repository: `src/mentalist -h`.
+
+After installing the dependencies, `MentaLiST` can be run directly from the repository: `src/mentalist -h`.
 
 ## Quick Start
 
