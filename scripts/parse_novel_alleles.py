@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 import logging
 logger = logging.getLogger()
 from collections import defaultdict, Counter
@@ -10,8 +10,8 @@ from Bio import SeqIO
 def mut_list_to_str(l, locus):
     c = Counter([x[1] for x in l])
     if len(c) == 1:
-        return str(c.keys()[0])
-    return ", ".join(["%dx (%d)" % (times, mut) for (mut, times) in c.iteritems()])
+        return str(list(c)[0])
+    return ", ".join(["%dx (%d)" % (times, mut) for (mut, times) in c.items()])
 
 if __name__ == "__main__":
 
@@ -30,35 +30,44 @@ if __name__ == "__main__":
     loci = set()
     for f in param.f:
         # get mutations:
-        mutations = {}
+        mutations = defaultdict(lambda : defaultdict(int))
+        novel_ids = defaultdict(lambda : defaultdict(str))
         with open(f[:-2] + "txt") as mutfile:
             mutfile.readline()
             for l in mutfile:
                 sample, locus, novel_id, ab, nmut, desc = l.strip().split("\t")
-                mutations[locus] = int(nmut)
+                mutations[sample][locus] = int(nmut)
+                novel_ids[sample][locus] = novel_id
         logger.debug("Opening file %s ..." % f)
+        
         for seq_record in SeqIO.parse(f, "fasta"):
             locus = "_".join(seq_record.id.split("_")[:-1])
+            novel_id = seq_record.id.split("_")[-1]
+            # if locus == "Rv0551c":
+            #     import pdb; pdb.set_trace()
             dna = str(seq_record.seq)
             loci.add(locus)
-            novel[locus][dna].append((sample,int(mutations[locus])))
+            for sample in mutations.keys():
+                # if mutations[sample][locus] > 0:
+                if novel_ids[sample][locus] == novel_id:
+                    novel[locus][dna].append((sample,mutations[sample][locus]))
 
     logger.info("Writing output ...")
     output_fasta = []
-    print("Locus\tAlleles found\tSamples x (mutations)")
     output_report = []
-    for locus in sorted(loci):
-        output_fasta.extend([(locus,seq) for seq, lst in novel[locus].items() if (len(lst) >= param.threshold or min([x[1] for x in lst]) <= param.mutation)])
-        print("%s\t%d\t%s" % (locus, len(novel[locus]), ", ".join(["%dx (%s)" % (len(lst), mut_list_to_str(lst, locus)) for seq, lst in sorted(novel[locus].items(), key=lambda x:len(x[1]), reverse=True)])))
-        for seq, lst in sorted(novel[locus].items(), key=lambda x:len(x[1]), reverse=True):
-            output_report.append((locus, len(lst), ",".join(["%s" % x[0] for x in lst])))
-    if param.o:
-        with open(param.o, "wb") as f:
-            for locus, seq in output_fasta:
-                print >> f, (">%s\n%s" % (locus, seq))
-        with open(param.o + ".samples.txt", "wb") as f:
-            print >> f, "Locus\tCount\tSamples"
-            for tuple in output_report:
-                print >> f, ("%s\t%dx\t%s" % tuple)
+    with open(param.o + ".txt", "w") as f:
+        f.write("Locus\tAlleles found\tSamples x (mutations)\n")
+        for locus in sorted(loci):
+            output_fasta.extend([(locus,seq) for seq, lst in novel[locus].items() if (len(lst) >= param.threshold or min([x[1] for x in lst]) <= param.mutation)])
+            f.write("%s\t%d\t%s\n" % (locus, len(novel[locus]), ", ".join(["%dx (%s)" % (len(lst), mut_list_to_str(lst, locus)) for seq, lst in sorted(novel[locus].items(), key=lambda x:len(x[1]), reverse=True)])))
+            for seq, lst in sorted(novel[locus].items(), key=lambda x:len(x[1]), reverse=True):
+                output_report.append((locus, len(lst), ",".join(["%s" % x[0] for x in lst])))
+    with open(param.o + ".fa", "w") as f:
+        for locus, seq in output_fasta:
+            f.write(">%s\n%s\n" % (locus, seq))
+    with open(param.o + ".samples.txt", "w") as f:
+        f.write("Locus\tCount\tSamples\n")
+        for tuple in output_report:
+            f.write("%s\t%dx\t%s\n" % tuple)
 
     logger.info("Done.")
