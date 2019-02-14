@@ -19,7 +19,7 @@ if __name__ == "__main__":
     # parser.add_argument("-s", nargs="+", help="New scheme fasta files, to compare if the novel allees are present.")
     parser.add_argument("-f", nargs="+", help="Fasta files with novel alleles.")
     parser.add_argument("-o", type=str, help="Output Fasta file with alleles above the threshold requirement(s).")
-    parser.add_argument("-t", "--threshold", type=int, default=5, help="Minimum number of different samples to appear, to include a novel allele in the output fasta.")
+    parser.add_argument("-t", "--threshold", type=int, default=1, help="Minimum number of different samples to appear, to include a novel allele in the output fasta.")
     parser.add_argument("-m", "--mutation", type=int, default=0, help="Also include if novel allel has equal or less than this number of mutations, regardless of times seen. Disabled by default.")
     parser.add_argument('-ll', '--loglevel', type=str, default="INFO", choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'], help='Set the logging level')
     param = parser.parse_args()
