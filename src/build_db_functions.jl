@@ -1,10 +1,29 @@
+using Distributed
 import GZip
 import JLD: load, save
 import FileIO: File, @format_str
 import Blosc
 import JSON
+using Pkg
 include("db_graph.jl")
 
+# Kmer coverage is based on Gurobi:
+function has_gurobi()
+  packages = keys(Pkg.installed())
+  return (in("Gurobi", packages) & in("JuMP", packages))
+end
+
+if has_gurobi()
+  include("kmer_coverage.jl") 
+else
+  try 
+    if args[cmd]["allele_coverage"] < 1
+      exit_error("Package Gurobi and JuMP are required to use allele coverage < 1, please install them.")
+    end
+  catch e
+    # args is not defined, including from tests;
+  end
+end
 
 # Complement a set; useful for 'compressing' large allele sets when building the scheme DB.
 function complement_alleles(vector, m)
@@ -34,7 +53,7 @@ function complement_alleles(vector, m)
 end
 
 # Combine all loci kmer classifications in a format that is easy to serialize to disk.
-function combine_loci_classification(k, results, loci)
+function combine_loci_classification(::Type{DNAKmer{k}}, results, loci) where {k}
   # Arrays to store the kmer classification votes:
   # all kmers in one big list:
   kmer_list = String[]
@@ -81,7 +100,8 @@ function combine_loci_classification(k, results, loci)
         weight = get(kmer_weights, kmer, 1)
       end
       # kmer as string:
-      push!(kmer_list, "$(convert(DNAKmer{k}, kmer))")
+      dnakmer = DNAKmer{k}(kmer)
+      push!(kmer_list, "$dnakmer")
       push!(weight_list, weight)
       push!(alleles_list, length(allele_list))
       append!(alleles_list, allele_list)
@@ -99,13 +119,17 @@ function combine_loci_classification(k, results, loci)
 
 end
 
-function kmer_class_for_each_locus(k::Int8, files::Vector{String}, coverage)
+function kmer_class_for_each_locus(::Type{DNAKmer{k}}, files::Vector{String}, coverage) where {k}
   loci = [splitext(basename(file))[1] for file in files]
-  results = pmap(file->build_db_graph(DNAKmer{k}, file, coverage), files)
+  if length(workers()) == 1
+    results = [build_db_graph(DNAKmer{k}, file, coverage) for file in files]
+  else
+    results = pmap(file->build_db_graph(DNAKmer{k}, file, coverage), files)
+  end
   return results, loci
 end
 
-function save_db(k, kmer_db, loci, filename, profile, args, version)
+function save_db(::Type{DNAKmer{k}}, kmer_db, loci, filename, profile, args, version) where {k}
 
   loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus, al_coverages = kmer_db
   d = Dict(
@@ -136,9 +160,9 @@ function save_db(k, kmer_db, loci, filename, profile, args, version)
   # mkdir:
   mkpath(dirname(filename))
   # database:
-  JLD.save(File(format"JLD", "$filename"), d)
+  save(File(format"JLD", "$filename"), d)
   # Profile:
   if profile != nothing
-    cp(profile, "$filename.profile", remove_destination=true)
+    cp(profile, "$filename.profile", force=true)
   end
 end

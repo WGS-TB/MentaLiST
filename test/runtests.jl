@@ -1,5 +1,6 @@
-using Base.Test
-using Base.@__FILE__
+using Test
+# using Base.Test
+# using Base.@__FILE__
 
 include("../src/mlst_download_functions.jl")
 include("../src/build_db_functions.jl")
@@ -9,7 +10,6 @@ include("../src/db_graph.jl")
 TEST_DIR = (dirname(@__FILE__))
 TMPDIR = mktempdir()
 VERSION = "testing"
-
 # encapsulate in a big test to get a summary of all in the end; if a testset fails, it will show the specific testset results,
 # otherwise will show just the total # of test passes.
 @testset "mentalist_tests" begin
@@ -44,11 +44,11 @@ VERSION = "testing"
 
   @testset "build_l_pneumophila_db" begin
     K::Int8 = 31
-    results, loci = kmer_class_for_each_locus(K, l_pneumophila_cgmlst_loci_files)
-    @test typeof(results) == Vector{Tuple{Dict{UInt64,Vector{Int16}},Vector{Int16},Dict{UInt64,Int64}}}
+    results, loci = kmer_class_for_each_locus(DNAKmer{K}, l_pneumophila_cgmlst_loci_files, 1)
+    @test typeof(results) == Vector{Tuple{Dict{UInt64,Vector{Int16}},Vector{Int16},Dict{UInt64,Int64},Vector{Int64}}}
     @test typeof(loci) == Vector{String}
 
-    kmer_classification = combine_loci_classification(K, results, loci)
+    kmer_classification = combine_loci_classification(DNAKmer{K}, results, loci)
     loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus = kmer_classification
     @test typeof(loci_list) == Vector{Int32}
     @test typeof(weight_list) == Vector{Int16}
@@ -61,17 +61,17 @@ VERSION = "testing"
 
     profile = nothing
     args = Dict("k" => K, "fasta_files" => l_pneumophila_cgmlst_loci_files)
-    save_db(K, kmer_classification, loci, l_pneumophila_cgmlst_db_file, profile, args, VERSION)
+    save_db(DNAKmer{K}, kmer_classification, loci, l_pneumophila_cgmlst_db_file, profile, args, VERSION)
     @test isfile(l_pneumophila_cgmlst_db_file)
   end
 
   @testset "build_c_jejuni_db" begin
     K::Int8 = 31
-    results, loci = kmer_class_for_each_locus(K, c_jejuni_pubmlst_loci_files)
-    @test typeof(results) == Vector{Tuple{Dict{UInt64,Vector{Int16}},Vector{Int16},Dict{UInt64,Int64}}}
+    results, loci = kmer_class_for_each_locus(DNAKmer{K}, c_jejuni_pubmlst_loci_files, 1)
+    @test typeof(results) == Vector{Tuple{Dict{UInt64,Vector{Int16}},Vector{Int16},Dict{UInt64,Int64},Vector{Int64}}}
     @test typeof(loci) == Vector{String}
 
-    kmer_classification = combine_loci_classification(K, results, loci)
+    kmer_classification = combine_loci_classification(DNAKmer{K}, results, loci)
     loci_list, weight_list, alleles_list, kmer_list, allele_ids_per_locus = kmer_classification
     @test typeof(loci_list) == Vector{Int32}
     @test typeof(weight_list) == Vector{Int16}
@@ -84,14 +84,14 @@ VERSION = "testing"
 
     profile = nothing
     args = Dict("k" => K, "fasta_files" => c_jejuni_pubmlst_loci_files)
-    save_db(K, kmer_classification, loci, c_jejuni_pubmlst_db_file, profile, args, VERSION)
+    save_db(DNAKmer{K}, kmer_classification, loci, c_jejuni_pubmlst_db_file, profile, args, VERSION)
     @test isfile(c_jejuni_pubmlst_db_file)
   end
 
   @testset "call_l_pneumophila" begin
     # open the db:
-    kmer_db, loci, loci2alleles, k, profile, build_args = open_db(l_pneumophila_cgmlst_db_file)
-    @test typeof(kmer_db) == Dict{Bio.Seq.Kmer{Bio.Seq.DNANucleotide,31},Vector{Tuple{Int16,Int16,Vector{Int16}}}}
+    kmer_db, loci, loci2alleles, coverage, k, profile, build_args = open_db(l_pneumophila_cgmlst_db_file)
+    @test typeof(kmer_db) == Dict{Kmer{DNA,31},Vector{Tuple{Int16,Int16,Vector{Int16}}}}
     @test typeof(loci) == Vector{String}
     @test typeof(loci2alleles) == Dict{Int16,Vector{Int16}}
 
@@ -105,14 +105,14 @@ VERSION = "testing"
     @test kmer_count[DNAKmer{k}("AAAAGAGCCAATTTGATGAGCCACCACATCA")] == 20
 
     # call:
-    votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
+    votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles, coverage)
     @test typeof(votes) == Dict{Int16,Dict{Int16,Int64}}
-    @test typeof(loci_votes) == DataStructures.DefaultDict{Int16,Int64,Int64}
+    @test typeof(loci_votes) == DefaultDict{Int16,Int64,Int64}
 
     # some parameters:
     kmer_thr, max_mutations, output_votes = 1, 5, true
     # call:
-    allele_calls, voting_result = call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, l_pneumophila_cgmlst_loci_files, kmer_thr, max_mutations, output_votes)
+    allele_calls, voting_result = call_alleles(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, l_pneumophila_cgmlst_loci_files, kmer_thr, max_mutations, output_votes)
     @test typeof(allele_calls) == Vector{AlleleCall}
     @test allele_calls[1].allele == "1"
     @test allele_calls[1].depth == 6
@@ -128,8 +128,8 @@ VERSION = "testing"
 
   @testset "call_c_jejuni" begin
     # open the db:
-    kmer_db, loci, loci2alleles, k, profile, build_args = open_db(c_jejuni_pubmlst_db_file)
-    @test typeof(kmer_db) == Dict{Bio.Seq.Kmer{Bio.Seq.DNANucleotide,31},Vector{Tuple{Int16,Int16,Vector{Int16}}}}
+    kmer_db, loci, loci2alleles, coverage, k, profile, build_args = open_db(c_jejuni_pubmlst_db_file)
+    @test typeof(kmer_db) == Dict{Kmer{DNA,31},Vector{Tuple{Int16,Int16,Vector{Int16}}}}
     @test typeof(loci) == Vector{String}
     @test typeof(loci2alleles) == Dict{Int16,Vector{Int16}}
 
@@ -144,14 +144,14 @@ VERSION = "testing"
     @test kmer_count[DNAKmer{k}("AAATATAGTCAATAAATTATAAAAAAAACTT")] == 0
 
     # call:
-    votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
+    votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles, coverage)
     @test typeof(votes) == Dict{Int16,Dict{Int16,Int64}}
-    @test typeof(loci_votes) == DataStructures.DefaultDict{Int16,Int64,Int64}
+    @test typeof(loci_votes) == DefaultDict{Int16,Int64,Int64}
 
     # some parameters:
     kmer_thr, max_mutations, output_votes = 2, 5, true
     # call:
-    allele_calls, voting_result = call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, c_jejuni_pubmlst_loci_files, kmer_thr, max_mutations, output_votes)
+    allele_calls, voting_result = call_alleles(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, c_jejuni_pubmlst_loci_files, kmer_thr, max_mutations, output_votes)
     @test typeof(allele_calls) == Vector{AlleleCall}
     @test [ac.allele for ac in allele_calls] == ["2", "17", "2", "3", "2", "1", "5"]
   end
@@ -161,8 +161,8 @@ VERSION = "testing"
     cp(c_jejuni_pubmlst_db_file, string(c_jejuni_pubmlst_copy_dir, "/", basename(c_jejuni_pubmlst_db_file)))
     cp(c_jejuni_pubmlst_dir, string(c_jejuni_pubmlst_copy_dir, "/", basename(c_jejuni_pubmlst_dir)))
     # open the db:
-    kmer_db, loci, loci2alleles, k, profile, build_args = open_db(string(dirname(c_jejuni_pubmlst_copy_dir), "/", basename(c_jejuni_pubmlst_db_file)))
-    @test typeof(kmer_db) == Dict{Bio.Seq.Kmer{Bio.Seq.DNANucleotide,31},Vector{Tuple{Int16,Int16,Vector{Int16}}}}
+    kmer_db, loci, loci2alleles, coverage, k, profile, build_args = open_db(string(dirname(c_jejuni_pubmlst_copy_dir), "/", basename(c_jejuni_pubmlst_db_file)))
+    @test typeof(kmer_db) == Dict{Kmer{DNA,31},Vector{Tuple{Int16,Int16,Vector{Int16}}}}
     @test typeof(loci) == Vector{String}
     @test typeof(loci2alleles) == Dict{Int16,Vector{Int16}}
 
@@ -177,14 +177,14 @@ VERSION = "testing"
     @test kmer_count[DNAKmer{k}("AAATATAGTCAATAAATTATAAAAAAAACTT")] == 0
 
     # call:
-    votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles)
+    votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles, coverage)
     @test typeof(votes) == Dict{Int16,Dict{Int16,Int64}}
-    @test typeof(loci_votes) == DataStructures.DefaultDict{Int16,Int64,Int64}
+    @test typeof(loci_votes) == DefaultDict{Int16,Int64,Int64}
 
     # some parameters:
     kmer_thr, max_mutations, output_votes = 2, 5, true
     # call:
-    allele_calls, voting_result = call_alleles(k, kmer_count, votes, loci_votes, loci, loci2alleles, c_jejuni_pubmlst_loci_files, kmer_thr, max_mutations, output_votes)
+    allele_calls, voting_result = call_alleles(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, c_jejuni_pubmlst_loci_files, kmer_thr, max_mutations, output_votes)
     @test typeof(allele_calls) == Vector{AlleleCall}
     @test [ac.allele for ac in allele_calls] == ["2", "17", "2", "3", "2", "1", "5"]
   end
@@ -203,12 +203,11 @@ VERSION = "testing"
   end
 
   @testset "twin" begin
-    @test twin(DNAKmer{0}, DNAKmer("")) == DNAKmer("")
-    @test twin(DNAKmer{1}, DNAKmer("A")) == DNAKmer("T")
-    @test twin(DNAKmer{1}, DNAKmer("C")) == DNAKmer("G")
-    @test twin(DNAKmer{1}, DNAKmer("G")) == DNAKmer("C")
-    @test twin(DNAKmer{1}, DNAKmer("T")) == DNAKmer("A")
-    @test twin(DNAKmer{4}, DNAKmer("ACTG")) == DNAKmer("CAGT")
+    @test twin(DNAKmer("A")) == DNAKmer("T")
+    @test twin(DNAKmer("C")) == DNAKmer("G")
+    @test twin(DNAKmer("G")) == DNAKmer("C")
+    @test twin(DNAKmer("T")) == DNAKmer("A")
+    @test twin(DNAKmer("ACTG")) == DNAKmer("CAGT")
   end
 
   # rm(TMPDIR, recursive=true)

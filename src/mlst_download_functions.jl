@@ -1,6 +1,8 @@
+using Distributed
 using LightXML
 import GZip
 @everywhere import GZip
+using Printf
 
 mentalist_shared_data_path = string(ENV["HOME"], "/", ".mentalist")
 
@@ -18,7 +20,7 @@ function _pubmlst_xml(download_dir=mentalist_shared_data_path)
   end
   dbases_file = string(download_dir, "/", "dbases.xml")
   if !isfile(dbases_file) || _older_than_a_day(dbases_file)
-    info(STDERR, "Downloading the MLST database xml file...")
+    @info("Downloading the MLST database xml file...")
     download("https://pubmlst.org/data/dbases.xml", dbases_file)
   end
   # get
@@ -31,7 +33,7 @@ function _cgmlst_http(download_dir=mentalist_shared_data_path)
   end
   cgmlst_file = string(download_dir, "/", "cgmlst.html")
   if !isfile(cgmlst_file)
-    info(STDERR, "Downloading the cgmlist HTML to find schema...")
+    @info("Downloading the cgmlist HTML to find schema...")
     download("www.cgmlst.org/ncs", cgmlst_file)
   end
   return cgmlst_file
@@ -51,7 +53,7 @@ function list_pubmlst_schema(prefix)
   for (id, sp_name) in scheme_list
     @printf "%d\t%-30s\n" id sp_name
   end
-  info(STDERR, "$(length(scheme_list)) schema found.")
+  @info("$(length(scheme_list)) scheme(s) found.")
 end
 
 
@@ -77,26 +79,26 @@ end
 function download_pubmlst_scheme(target_species, output_dir, overwrite=false)
   loci_files = String[]
   xroot = root(_pubmlst_xml())
-  info(STDERR, "Searching for the scheme ... ")
+  @info("Searching for the scheme ... ")
   species = _find_publmst_species(xroot, target_species)
   if species == nothing
     Lumberjack.warn("I did not find this scheme on pubmlst, please check the species spelling or the ID and try again.")
     exit(-1)
     return
   end
-  info("Downloading scheme for $(_get_first_line(species)) ... ")
+  @info("Downloading scheme for $(_get_first_line(species)) ... ")
   db = species["mlst"][1]["database"][1]
-  info("Downloading profile ...")
+  @info("Downloading profile ...")
   profile_url = content(db["profiles"][1]["url"][1])
   profile_file = _download_to_folder(profile_url, output_dir, overwrite)
   for locus in db["loci"][1]["locus"]
     locus_name = _get_first_line(locus)
-    info("Downloading locus $locus_name ...")
+    @info("Downloading locus $locus_name ...")
     locus_url = content(locus["url"][1])
     filepath = _download_to_folder(locus_url, output_dir)
     push!(loci_files, filepath)
   end
-  info("Finished downloading.")
+  @info("Finished downloading.")
   return (loci_files, profile_file)
 end
 
@@ -126,7 +128,7 @@ function list_cgmlst_schema(prefix)
       @printf "%s\t%-30s\n" id species
     end
   end
-  info(STDERR, "$count schema found.")
+  @info("$count schema found.")
 end
 
 function _find_cgmlst_id(target_id)
@@ -160,7 +162,7 @@ function download_enterobase_scheme(scheme, s_type, output_dir, overwrite=false)
   sp = Dict("E"=>"Escherichia", "S"=>"Salmonella", "Y"=>"Yersinia", "C" => "clostridium")
 
   if !haskey(sp, scheme)
-    info("Scheme has to be E, S, Y or C.")
+    @info("Scheme has to be E, S, Y or C.")
     exit(-1)
   end
   # Version: empty for wg, v2 for Salmonella cg, v1 for other cg.
@@ -188,11 +190,11 @@ function download_cgmlst_scheme(target_id, output_dir)
     Lumberjack.warn("Id/species ($target_id) not found!")
     exit(-1)
   end
-  info("Downloading cgMLST scheme ...")
+  @info("Downloading cgMLST scheme ...")
   scheme_zip_file = _download_to_folder("https://www.cgmlst.org/ncs/schema/$id/alleles", output_dir)
   locus_files = String[]
   locus = ""
-  info("Unzipping cgMLST scheme into individual FASTA files for each locus ...")
+  @info("Unzipping cgMLST scheme into individual FASTA files for each locus ...")
   scheme_dirname = dirname(scheme_zip_file)
   run(`unzip -oq $scheme_zip_file -d $scheme_dirname/tmp`)
   rm(scheme_zip_file)
@@ -223,7 +225,7 @@ function download_cgmlst_scheme(target_id, output_dir)
   end
   println()
   total_loci = length(locus_files)
-  info("$total_loci loci found.")
+  @info("$total_loci loci found.")
   rm(joinpath(scheme_dirname, "tmp"), recursive=true)
   return locus_files
 end
