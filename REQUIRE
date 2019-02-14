@@ -1,11 +1,13 @@
-julia 0.6
-Bio
-OpenGene
-Logging
+julia 1.1
 ArgParse
-Lumberjack
-FastaIO
-JLD
+BioSequences
+JSON
 DataStructures
+JLD
+GZip
+Blosc
+FileIO
+TextWrap
+LightXML
 JuMP
 Gurobi
