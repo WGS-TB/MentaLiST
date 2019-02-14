@@ -81,14 +81,13 @@ end
         end
       end
     catch
-      @error("CRITICAL ERROR: Error parsing file $fastafile, at record $(FASTA.identifier(record)), most likely some unkown characters. Please fix it and try again.")
-      exit(-1)
+      @error("Error parsing file $fastafile, at record $(FASTA.identifier(record)), most likely some unkown characters; this allele will be skipped.")
     end
     push!(n_kmers, length(seen)) # number of unique kmers for this allele;
     # find the separator; will assume that if I see a "_", that's it, otherwise try "-";
     separator = in('_', FASTA.identifier(record)) ? "_" : "-"
     # update idx; the counter idx is incremental (1,2, ...) because we need the array sorted.
-    # But this is not always sin the allele ordering, so we have to save the original id to restore it later;
+    # But this is not always in the allele ordering, so we have to save the original id to restore it later;
     allele_id = parse(Int16,split(FASTA.identifier(record), separator)[end])
     push!(allele_ids, allele_id)
     allele_idx += 1
