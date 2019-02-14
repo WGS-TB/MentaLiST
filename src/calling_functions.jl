@@ -1,8 +1,5 @@
 using BioSequences
 using DataStructures: DefaultDict, OrderedDict
-
-using FastaIO
-# using OpenGene: fastq_open, fastq_read, fasta_open, fasta_read
 using TextWrap: wrap
 import JLD: load, save
 import Blosc

@@ -1,13 +1,5 @@
-# Packages needed for parallel processing need to be loaded "twice":
-using BioSequences
 @everywhere using BioSequences
-
-using DataStructures: DefaultDict
 @everywhere using DataStructures: DefaultDict
-using FastaIO
-@everywhere using FastaIO
-# using JuMP, Gurobi
-# @everywhere using JuMP, Gurobi
 
 @everywhere function twin(km)
     DNAKmer(reverse_complement(DNASequence(km)))
