@@ -88,10 +88,9 @@ julia> Pkg.add("Blosc")
 julia> Pkg.add("FileIO")
 julia> Pkg.add("TextWrap")
 julia> Pkg.add("LightXML")
-julia> # Optional packages; you will need a Gurobi license. 
-julia> Pkg.add("JuMP")
-julia> Pkg.add("Gurobi")
 ```
+#### Optional Packages
+If you want to use the allele coverage method (`-c` option), useful for compressing very large wgMLST schemes when building a new MLST database, you will need a copy of Gurobi ILP solver, and also the Gurobi and JuMP julia packages. Please check https://github.com/JuliaOpt/Gurobi.jl for installation instructions. 
 
 After installing the dependencies, `MentaLiST` can be run directly from the repository: `src/mentalist -h`.
 
