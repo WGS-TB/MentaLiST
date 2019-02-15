@@ -78,6 +78,7 @@ You can also add `/Applications/Julia-1.1.app/Contents/Resources/julia/bin/julia
 ```
 julia
 julia> using Pkg
+julia> Pkg.add("Distributed")
 julia> Pkg.add("ArgParse")
 julia> Pkg.add("BioSequences")
 julia> Pkg.add("JSON")
