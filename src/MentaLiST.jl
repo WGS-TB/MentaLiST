@@ -106,7 +106,7 @@ function parse_commandline()
         arg_type = Int8
       "--threads" # disabled for julia 1.1, the current syntax does not seem to work.
         arg_type = Int
-        default = 2
+        default = 1
         help = "Number of threads used in parallel."
       "-c", "--allele_coverage"
        arg_type = Float64
@@ -238,6 +238,14 @@ function download_enterobase(args)
 end
 
 function build_db(args, version=VERSION)
+  # check if we need Gurobi:
+  if args["allele_coverage"] < 1
+    ok = include_gurobi()
+    if !ok
+      exit_error("Could not load libraries. To use the allele coverage functionality (option -c), a proper installation of Gurobi (www.gurobi.com) and the Gurobi and JuMP julia packages are required.\nCheck https://github.com/JuliaOpt/Gurobi.jl for installation instructions.")
+    end
+  end
+
   # check if files exist:
   check_files(args["fasta_files"])
   # get arguments and call the kmer db builder for each locus:
@@ -283,6 +291,31 @@ function db_info(args)
   println("num_loci\t$num_loci")
 end
 
+## Gurobi ILP:
+
+# Kmer coverage is based on Gurobi:
+function has_gurobi()
+  packages = keys(Pkg.installed())
+  return (in("Gurobi", packages) & in("JuMP", packages))
+end
+
+function include_gurobi()
+  if has_gurobi()
+    @info "We have it"
+    try
+      include("kmer_coverage.jl") 
+    catch e
+      if isa(e, LoadError)
+        @error("Error trying to load Gurobi package.")
+        return false
+      end
+    end
+    return true
+  else
+    return false
+  end
+end
+
 ##### Main function: just calls the appropriate commands, with arguments:
 
 args = parse_commandline()
@@ -293,7 +326,9 @@ if cmd == "call"
   call_mlst(args[cmd])
 
 elseif cmd == "build_db"
-  addprocs(args[cmd]["threads"])
+  if args[cmd]["threads"] > 1
+    addprocs(args[cmd]["threads"])
+  end
   include("build_db_functions.jl")
   build_db(args[cmd])
 
@@ -316,13 +351,17 @@ elseif cmd == "list_cgmlst"
   list_cgmlst(args[cmd])
 
 elseif cmd == "download_cgmlst"
+  if args[cmd]["threads"] > 1
+    addprocs(args[cmd]["threads"])
+  end
   include("mlst_download_functions.jl")
-  addprocs(args[cmd]["threads"])
   include("build_db_functions.jl")
   download_cgmlst(args[cmd])
 
 elseif cmd == "download_enterobase"
-  addprocs(args[cmd]["threads"])
+  if args[cmd]["threads"] > 1
+    addprocs(args[cmd]["threads"])
+  end
   include("mlst_download_functions.jl")
   include("build_db_functions.jl")
   download_enterobase(args[cmd])

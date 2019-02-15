@@ -60,6 +60,7 @@ end
 ### classifies each kmer with his colors (present alleles)
 @everywhere function find_all_kmer_colors(::Type{DNAKmer{k}}, fastafile) where {k}
   # record = FASTASeqRecord{DNASequence}()
+  errors = 0
   record = FASTA.Record()
   kmer_class = DefaultDict{DNAKmer, Vector{Int16}}(() -> Int16[])
   allele_ids = Int16[]
@@ -69,9 +70,11 @@ end
   # reader = open(FASTA.Reader{DNASequence}, fastafile)
   # reader = FASTA.Reader{DNASequence}, fastafile)
   reader = open(FASTA.Reader, fastafile)
+  local seq_id, pos
   while !eof(reader)
     try
       read!(reader, record)
+      seq_id = FASTA.identifier(record)
       seen = Set{DNAKmer}()
       for (pos, kmer) in each(DNAKmer{k}, FASTA.sequence(record))
         can_kmer = canonical(kmer)
@@ -80,16 +83,21 @@ end
           push!(seen, can_kmer)
         end
       end
-    catch
-      @error("Error parsing file $fastafile, at record $(FASTA.identifier(record)), most likely some unkown characters; this allele will be skipped.")
+      push!(n_kmers, length(seen)) # number of unique kmers for this allele;
+      # find the separator; will assume that if I see a "_", that's it, otherwise try "-";
+      separator = in('_', seq_id) ? "_" : "-"
+      # update idx; the counter idx is incremental (1,2, ...) because we need the array sorted.
+      # But this is not always in the allele ordering, so we have to save the original id to restore it later;
+      allele_id = parse(Int16,split(FASTA.identifier(record), separator)[end])
+      push!(allele_ids, allele_id)
+    catch e
+      @error("Error parsing file $fastafile, around record $seq_id, most likely some unkown characters are present; this allele will be skipped. \nThis might make the results on this locus unreliable; please fix this FASTA file and rerun.")
+      errors += 1
+      if errors > 2
+        @error("Too many unrecoverable errors on this FASTA file; skipping this locus ... ")
+        exit(-1) # TODO: Could I try to skip just this locus? 
+      end
     end
-    push!(n_kmers, length(seen)) # number of unique kmers for this allele;
-    # find the separator; will assume that if I see a "_", that's it, otherwise try "-";
-    separator = in('_', FASTA.identifier(record)) ? "_" : "-"
-    # update idx; the counter idx is incremental (1,2, ...) because we need the array sorted.
-    # But this is not always in the allele ordering, so we have to save the original id to restore it later;
-    allele_id = parse(Int16,split(FASTA.identifier(record), separator)[end])
-    push!(allele_ids, allele_id)
     allele_idx += 1
   end
   close(reader)

@@ -7,23 +7,6 @@ import JSON
 using Pkg
 include("db_graph.jl")
 
-# Kmer coverage is based on Gurobi:
-function has_gurobi()
-  packages = keys(Pkg.installed())
-  return (in("Gurobi", packages) & in("JuMP", packages))
-end
-
-if has_gurobi()
-  include("kmer_coverage.jl") 
-else
-  try 
-    if args[cmd]["allele_coverage"] < 1
-      exit_error("Package Gurobi and JuMP are required to use allele coverage < 1, please install them.")
-    end
-  catch e
-    # args is not defined, including from tests;
-  end
-end
 
 # Complement a set; useful for 'compressing' large allele sets when building the scheme DB.
 function complement_alleles(vector, m)
@@ -121,11 +104,12 @@ end
 
 function kmer_class_for_each_locus(::Type{DNAKmer{k}}, files::Vector{String}, coverage) where {k}
   loci = [splitext(basename(file))[1] for file in files]
-  if length(workers()) == 1
+  if length(workers()) == 1 
     results = [build_db_graph(DNAKmer{k}, file, coverage) for file in files]
   else
     results = pmap(file->build_db_graph(DNAKmer{k}, file, coverage), files)
   end
+
   return results, loci
 end
 
