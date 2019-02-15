@@ -7,9 +7,8 @@ exec julia --color=yes --startup-file=no "${BASH_SOURCE[0]}" "$@"
 using ArgParse
 using Distributed
 using Printf
-using Pkg
 
-VERSION = "0.3.0"
+VERSION = "1.0.0"
 
 function parse_commandline()
     s = ArgParseSettings()
