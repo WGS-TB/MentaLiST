@@ -301,7 +301,6 @@ end
 
 function include_gurobi()
   if has_gurobi()
-    @info "We have it"
     try
       include("kmer_coverage.jl") 
     catch e

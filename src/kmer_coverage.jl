@@ -1,4 +1,5 @@
-using JuMP, Gurobi
+using Distributed
+@everywhere using JuMP, Gurobi
 @everywhere function kmer_coverage_ilp(locus, kmer_class, allele_ids, coverages)
   # m = Model(solver=GurobiSolver(Presolve=0))
   # one minute at most per locus, gap=0.1, no need to have optimal per se;
