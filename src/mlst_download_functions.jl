@@ -82,7 +82,7 @@ function download_pubmlst_scheme(target_species, output_dir, overwrite=false)
   @info("Searching for the scheme ... ")
   species = _find_publmst_species(xroot, target_species)
   if species == nothing
-    Lumberjack.warn("I did not find this scheme on pubmlst, please check the species spelling or the ID and try again.")
+    @warn("I did not find this scheme on pubmlst, please check the species spelling or the ID and try again.")
     exit(-1)
     return
   end
@@ -187,7 +187,7 @@ end
 function download_cgmlst_scheme(target_id, output_dir)
   id = _find_cgmlst_id(target_id)
   if id == nothing
-    Lumberjack.warn("Id/species ($target_id) not found!")
+    @warn("Id/species ($target_id) not found!")
     exit(-1)
   end
   @info("Downloading cgMLST scheme ...")
