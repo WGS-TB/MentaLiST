@@ -506,23 +506,12 @@ function write_calls(sample_results, loci, loci2alleles, filename, profile, outp
   end
 end
 
-function count_kmers_in_fasta_file(::Type{DNAKmer{k}}, file, kmer_count) where {k}
-  reader = FASTA.Reader(open(fastq_file, "r"))
+function count_kmers_in_fasta_file(::Type{DNAKmer{k}}, fasta_file, kmer_count) where {k}
+  reader = FASTA.Reader(open(fasta_file, "r"))
 	record = FASTA.Record()
   while !eof(reader)
       read!(reader, record)
       for (pos, kmer) in each(DNAKmer{k}, FASTA.sequence(record))
-        kmer_count[canonical(kmer)] += 1
-      end
-    end
-end
-
-function count_kmers_in_fastq_file(::Type{DNAKmer{k}}, fastq_file, kmer_count) where {k}  
-  reader = FASTQ.Reader(endswith(fastq_file, ".gz") ? GZip.open(fastq_file, "r") : open(fastq_file, "r"))
-  record = FASTQ.Record()
-  while !eof(reader)
-      read!(reader, record)
-      for (pos, kmer) in each(DNAKmer{k}, FASTQ.sequence(record))
         kmer_count[canonical(kmer)] += 1
       end
     end
