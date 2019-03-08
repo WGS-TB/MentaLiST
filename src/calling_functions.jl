@@ -315,7 +315,7 @@ function call_alleles(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci, l
 
       else # TODO: if all gaps have not been covered, just call directly uncovered? (no novel at all)
         # did not a fully corrected novel; possibly an uncovered allele, maybe partially corrected; output allele/N
-        report_txt = "Partially covered alelle or novel allele; Best allele $template_allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found. Gaps on positions: $(join(al_cov.gap_list, ','))"
+        report_txt = "Partially covered allele or novel allele; Best allele $template_allele_label has $uncovered_kmers/$(covered_kmers+uncovered_kmers) missing kmers, and no novel was found. Gaps on positions: $(join(al_cov.gap_list, ','))"
         alleles_to_check =[("$(novel_allele.template_allele)", novel_allele.sequence, "Best allele $template_allele_label, but partially covered.")]
         return PartiallyCoveredAllele("$template_allele_label", round(coverage,digits=4), 0, report_txt, alleles_to_check) # if it's not 100% covered, then depth=0
       end
