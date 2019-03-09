@@ -116,7 +116,7 @@ end
   # Coverage per allele:
   coverages = [ Int(round(n_k * coverage_p)) for n_k in n_kmers]
   # If coverage < 1, solve the ilp, otherwise just select all keys (all kmers)
-  selected_kmers, actual_coverages = coverage_p < 1 ? kmer_coverage_ilp(locus, kmer_class, allele_ids, coverages) : (keys(kmer_class), coverages)
+  selected_kmers, actual_coverages = coverage_p < 1 ? Base.invokelatest(kmer_coverage_ilp, locus, kmer_class, allele_ids, coverages) : (keys(kmer_class), coverages)
   # filter more kmers with de Bruijn graph contigs
   filtered_kmer_class, kmer_weights = filter_kmers_with_db_graph(DNAKmer{k}, kmer_class, selected_kmers)
   # debug log:
