@@ -17,6 +17,7 @@ DEFAULT_DATA_TABLE_NAMES = ["mentalist_databases"]
 
 
 def mentalist_download_pubmlst( data_manager_dict, kmer_size, scheme, params, target_directory, data_table_names=DEFAULT_DATA_TABLE_NAMES ):
+    scheme = scheme.replace('__pd__','#')
     translation_table = string.maketrans(string.punctuation, ("_" * 32))
     base_path = scheme.lower().replace(" ", "_").translate(translation_table) + "_pubmlst"
     today = datetime.date.today().isoformat()
