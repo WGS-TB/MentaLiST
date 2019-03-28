@@ -20,6 +20,8 @@
       <option value="Clostridioides difficile">Clostridioides difficile</option>
       <option value="Enterococcus faecium">Enterococcus faecium</option>
       <option value="Francisella tularensis">Francisella tularensis</option>
+      <option value="Klebsiella pneumoniae/variicola/quasipneumoniae">Klebsiella pneumoniae/variicola/quasipneumoniae</option>
+      <option value="Mycobacterium tuberculosis/bovis/africanum/canettii">Mycobacterium tuberculosis/bovis/africanum/canettii</option>
       <option value="Legionella pneumophila">Legionella pneumophila</option>
       <option value="Listeria monocytogenes">Listeria monocytogenes</option>
       <option value="Staphylococcus aureus">Staphylococcus aureus</option>
