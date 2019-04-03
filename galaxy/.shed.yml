@@ -3,5 +3,5 @@ owner: dfornika
 description: MLST caller designed to handle large typing schemes.
 homepage_url: https://github.com/WGS-TB/MentaLiST
 long_description: 
-remote_repository_url: https://github.com/WGS-TB/MentaLiST/tree/master/galaxy
+remote_repository_url: https://github.com/WGS-TB/MentaLiST/tree/mentalist_v0.1/galaxy
 type: unrestricted
