@@ -321,9 +321,9 @@ function call_alleles(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci, l
       end
     end
 
-    if locus_votes == 0   # 1st - if no locus votes, no presence:
-      return LocusNotPresentCall()
-    end
+    # if locus_votes == 0   # 1st - if no locus votes, no presence:
+    #   return LocusNotPresentCall()
+    # end
     # Votes: Dict{Int16,Dict{Int16,Int64}}; locus_idx -> { allele_idx -> votes};
 
     sorted_voted_alleles = sort(collect(votes_per_allele), by=x->-x[2]) # sort by max votes for this locus;
@@ -438,21 +438,36 @@ function write_calls(sample_results, loci, loci2alleles, filename, profile, outp
   open("$filename.novel.txt", "w") do text
     write(text, "Sample\tLocus\tNovel_id\tMinKmerDepth\tNmut\tDesc\n")
     for (sample, allele_calls, voting_result) in sample_results
+      # println(novel_to_fasta)
+      # println("------------")
       novel_alleles = [(locus, call.novel_allele) for (locus, call) in zip(loci, allele_calls) if call.novel_allele.template_allele != -1]
+      # print("novel_allele: ")
+      # println(novel_alleles)
       for (locus, novel_allele) in novel_alleles
         mutation_desc = join([describe_mutation(ev) for ev in novel_allele.mutations_list], ", ")
         # check if this novel was seen before:
         if (times_seen[novel_allele.sequence] == 0)
+          # println("new novel!")
           current_novel_id[locus] += 1
+          # println(locus)
+          # println(current_novel_id[locus])
           push!(novel_to_fasta, (locus, novel_allele.sequence))
+          novel_id[novel_allele.sequence] = current_novel_id[locus]
+          write(text, "$sample\t$locus\tN$(novel_id[novel_allele.sequence])\t$(novel_allele.depth)\t$(novel_allele.n_mutations)\tFrom allele $(novel_allele.template_allele), $mutation_desc.\n")
         end
         times_seen[novel_allele.sequence] += 1
-        novel_id[novel_allele.sequence] = current_novel_id[locus]
-        write(text, "$sample\t$locus\tN$(novel_id[novel_allele.sequence])\t$(novel_allele.depth)\t$(novel_allele.n_mutations)\tFrom allele $(novel_allele.template_allele), $mutation_desc.\n")
+        # println(">>> Times we seen this allele")
+        # println(times_seen[novel_allele.sequence])
+        # println("--------")
+        # println(novel_allele.sequence)
+        # println(novel_id[novel_allele.sequence])
+
       end
     end
   end
   # now write the fasta:
+  # println("<><><><><><><><><><><><><><><><><><>")
+  # println(novel_to_fasta)
   open("$filename.novel.fa", "w") do f
     for (locus, seq) in novel_to_fasta
       desc = "Seen in $(times_seen[seq]) sample(s)"
@@ -550,6 +565,9 @@ function count_votes(kmer_count, kmer_db, loci2alleles, db_coverage)
   votes = Dict(locus_idx => Dict{Int16, Int}(i => 0 for i in 1:length(alleles)) for (locus_idx,alleles) in loci2alleles)
   # votes per locus, to decide presence/absence:
   loci_votes = DefaultDict{Int16, Int}(0)
+  # for (locus,) in loci2alleles
+  #     loci_votes[locus] = 0
+  # end
   for (kmer, count) in kmer_count
     if haskey(kmer_db, kmer)
       for (locus, weight, alleles) in kmer_db[kmer]
