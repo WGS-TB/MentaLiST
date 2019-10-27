@@ -302,7 +302,7 @@ end
 function include_gurobi()
   if has_gurobi()
     try
-      include("kmer_coverage.jl") 
+      include("kmer_coverage.jl")
     catch e
       if isa(e, LoadError)
         @error("Error trying to load Gurobi package.")

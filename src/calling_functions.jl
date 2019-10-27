@@ -5,6 +5,7 @@ import JLD: load, save
 import Blosc
 import JSON
 import GZip
+global coverage_test_time = 0
 ### Main calling function:
 function run_calling_pipeline(args)
   # get samples/fastq files from command line parameters:
@@ -30,12 +31,14 @@ function run_calling_pipeline(args)
     @info("Voting for alleles ... ")
     votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles, db_coverage)
     @info("Calling alleles and novel alleles ...")
+    @info("time consumed for coverage test", coverage_test_time)
     # If fasta are given as input, set kt as 1:
     kt = args["fasta"] ? 1 : args["kt"]
     allele_calls, voting_result = call_alleles(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], kt, args["mutation_threshold"], args["output_votes"])
     push!(sample_results, (sample, allele_calls, voting_result))
   end
   @info("Writing output ...")
+
   write_calls(sample_results, loci, loci2alleles, args["o"], profile, args["output_special"], args["output_votes"])
 
   @info("Done.")
@@ -248,7 +251,9 @@ function call_alleles(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci, l
     function call_from_selected_allele_votes(selected_allele_votes)
       allele_set = Set([al for (al, votes) in selected_allele_votes])
       allele_seqs = read_alleles(fasta_file, allele_set)
+      time = time_ns() / 10^9
       allele_coverage = [AlleleCoverage(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)...) for (al, votes) in selected_allele_votes]
+      coverage_test_time += time_ns() / 10^9 - time
       # filter to find fully covered alleles:
       covered = [x for x in allele_coverage if (x.depth >= kmer_thr)] # if I remove alleles with negative votes, I might the reconstruct the same allele on the novel rebuild; better to flag output
       if length(covered) == 1
