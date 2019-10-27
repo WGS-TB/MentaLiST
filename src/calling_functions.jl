@@ -34,7 +34,7 @@ function run_calling_pipeline(args)
     # If fasta are given as input, set kt as 1:
     kt = args["fasta"] ? 1 : args["kt"]
     allele_calls, voting_result = call_alleles(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], kt, args["mutation_threshold"], args["output_votes"])
-    @info("time consumed for coverage test", coverage_test_time)
+    # @info("time consumed for coverage test", coverage_test_time)
     push!(sample_results, (sample, allele_calls, voting_result))
   end
   @info("total time consumed for coverage test", coverage_test_time)
@@ -255,7 +255,7 @@ function call_alleles(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci, l
       time = time_ns() / 10^9
       allele_coverage = [AlleleCoverage(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)...) for (al, votes) in selected_allele_votes]
       global coverage_test_time += time_ns() / 10^9 - time
-      println(coverage_test_time)
+      # println(coverage_test_time)
 
       # filter to find fully covered alleles:
       covered = [x for x in allele_coverage if (x.depth >= kmer_thr)] # if I remove alleles with negative votes, I might the reconstruct the same allele on the novel rebuild; better to flag output
