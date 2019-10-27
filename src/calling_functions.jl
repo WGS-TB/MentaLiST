@@ -31,7 +31,7 @@ function run_calling_pipeline(args)
     @info("Voting for alleles ... ")
     votes, loci_votes = count_votes(kmer_count, kmer_db, loci2alleles, db_coverage)
     @info("Calling alleles and novel alleles ...")
-    @info("time consumed for coverage test", global coverage_test_time)
+    @info("time consumed for coverage test", coverage_test_time)
     # If fasta are given as input, set kt as 1:
     kt = args["fasta"] ? 1 : args["kt"]
     allele_calls, voting_result = call_alleles(DNAKmer{k}, kmer_count, votes, loci_votes, loci, loci2alleles, build_args["fasta_files"], kt, args["mutation_threshold"], args["output_votes"])
