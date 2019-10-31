@@ -188,7 +188,8 @@ end
 function read_alleles(fastafile, ids)
   alleles = Dict{Int, String}()
   idx = 1
-  reader = FASTA.Reader(open(fastafile, "r"))
+  fh = open(fastafile, "r")
+  reader = FASTA.Reader(fh)
   record = FASTA.Record()
   while !eof(reader)
     read!(reader, record)
