@@ -104,7 +104,7 @@ end
 
 function kmer_class_for_each_locus(::Type{DNAKmer{k}}, files::Vector{String}, coverage) where {k}
   loci = [splitext(basename(file))[1] for file in files]
-  if length(workers()) == 1 
+  if length(workers()) == 1
     results = [build_db_graph(DNAKmer{k}, file, coverage) for file in files]
   else
     results = pmap(file->build_db_graph(DNAKmer{k}, file, coverage), files)

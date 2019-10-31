@@ -255,7 +255,6 @@ function call_alleles(::Type{DNAKmer{k}}, kmer_count, votes, loci_votes, loci, l
       time = time_ns() / 10^9
       allele_coverage = [AlleleCoverage(al, votes, sequence_coverage(DNAKmer{k}, allele_seqs[al], kmer_count, kmer_thr)...) for (al, votes) in selected_allele_votes]
       global coverage_test_time += time_ns() / 10^9 - time
-      # println(coverage_test_time)
 
       # filter to find fully covered alleles:
       covered = [x for x in allele_coverage if (x.depth >= kmer_thr)] # if I remove alleles with negative votes, I might the reconstruct the same allele on the novel rebuild; better to flag output

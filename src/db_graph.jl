@@ -95,7 +95,7 @@ end
       errors += 1
       if errors > 2
         @error("Too many unrecoverable errors on this FASTA file; skipping this locus ... ")
-        exit(-1) # TODO: Could I try to skip just this locus? 
+        exit(-1) # TODO: Could I try to skip just this locus?
       end
     end
     allele_idx += 1
@@ -114,16 +114,30 @@ end
   selected_kmers = DNAKmer[]
   actual_coverages = []
   # Coverage per allele:
-  coverages = [ Int(round(n_k * coverage_p)) for n_k in n_kmers]
+  coverages = [Int(round(n_k * coverage_p)) for n_k in n_kmers]
+  # # If coverage < 1, solve the ilp, otherwise just select all keys (all kmers)
+  # selected_kmers, actual_coverages = coverage_p < 1 ? Base.invokelatest(kmer_coverage_ilp, locus, kmer_class, allele_ids, coverages) : (keys(kmer_class), coverages)
+  # # filter more kmers with de Bruijn graph contigs
+  # filtered_kmer_class, kmer_weights = filter_kmers_with_db_graph(DNAKmer{k}, kmer_class, selected_kmers)
+
+
+  # # filter more kmers with de Bruijn graph contigs
+  selected_kmer_class, kmer_weights = filter_kmers_with_db_graph(DNAKmer{k}, kmer_class, keys(kmer_class))
   # If coverage < 1, solve the ilp, otherwise just select all keys (all kmers)
-  selected_kmers, actual_coverages = coverage_p < 1 ? Base.invokelatest(kmer_coverage_ilp, locus, kmer_class, allele_ids, coverages) : (keys(kmer_class), coverages)
-  # filter more kmers with de Bruijn graph contigs
-  filtered_kmer_class, kmer_weights = filter_kmers_with_db_graph(DNAKmer{k}, kmer_class, selected_kmers)
+  chosed_kmer_class, actual_coverages = coverage_p < 1 ? Base.invokelatest(kmer_coverage_ilp, locus, selected_kmer_class, allele_ids, coverages) : (keys(selected_kmer_class), coverages)
+  # println(typeof(selected_kmer_class))
+  # println(typeof(filtered_kmer_class))
+  filtered_kmer_class = Dict{UInt64, Array{Int16,1}}()
+  for kmer in chosed_kmer_class
+      filtered_kmer_class[kmer] = selected_kmer_class[kmer]
+  end
+  # kmer_weights = kmer_weights[filtered_kmer_class]
   # debug log:
-  sel_kmers, contig_kmers = length(selected_kmers), length(filtered_kmer_class)
+  # sel_kmers, contig_kmers = length(selected_kmers), length(filtered_kmer_class)
   # println("$locus\t$coverage_p\tAll kmers\t$sel_kmers")
   # println("$locus\t$coverage_p\tdb Graph\t$contig_kmers")
-
+  # println(filtered_kmer_class, allele_ids, kmer_weights, actual_coverages)
+  # return (kmer_class[filtered_kmer_class], allele_ids, kmer_weights, actual_coverages)
   return (filtered_kmer_class, allele_ids, kmer_weights, actual_coverages)
 
 end
