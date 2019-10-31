@@ -197,6 +197,7 @@ function read_alleles(fastafile, ids)
     end
     idx += 1
   end
+  close(fh)
   return alleles
 end
 
