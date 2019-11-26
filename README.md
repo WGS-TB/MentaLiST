@@ -90,6 +90,10 @@ julia> Pkg.add("FileIO")
 julia> Pkg.add("TextWrap")
 julia> Pkg.add("LightXML")
 ```
+
+#### MentaLiST 2.0 and WACP
+MentaLiST 2.0 implements WACP, new weighted version of the allele cover problem. It selects discriminative k-mer among k-mer of the alleles.  
+
 #### Optional Packages
 If you want to use the allele coverage method (`-c` option), useful for compressing very large wgMLST schemes when building a new MLST database, you will need a copy of Gurobi ILP solver, and also the Gurobi and JuMP julia packages. Please check https://github.com/JuliaOpt/Gurobi.jl for installation instructions. 
 
