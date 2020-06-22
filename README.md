@@ -32,6 +32,8 @@ The other way is by manually downloading and installing Julia, and the required 
 
 ### Conda installation
 
+The MentaLiST conda package is maintained [as a bioconda recipe](https://github.com/bioconda/bioconda-recipes/tree/master/recipes/mentalist)
+
 **Note: We've received reports that the current conda builds of MentaLiST are broken. MentaLiST was recently updated to run on Julia 1.1, so these builds are quite out-of-date in respect with the current GitHub version. Until this is resolved, we recommend installing MentaLiST with the manual installation, as described below. **
 
 The easiest way of installing MentaLiST is by creating a new environment with [Conda](https://conda.io/docs/). 

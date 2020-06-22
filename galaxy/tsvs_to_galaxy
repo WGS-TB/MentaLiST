@@ -1,0 +1,10 @@
+def parseTSV: . | split("\n") | map(select(startswith("#") | not)) | map(split("\t")) | .[];
+{
+  "data_tables": {
+    "mlst_db_sources": [
+      ($pb | parseTSV | {"source_id": "pubMLST_" + .[0], source": "pubMLST", "id": .[0], "name": .[1]}) +
+      ($cg | parseTSV | {"source_id": "cgMLST_" + .[0], "source": "cgMLST", "id": .[0], "name": .[1]}) +
+      ($eb | parseTSV | {"source_id": "Enterobase_" + .[0], "source": "Enterobase", "id": .[0], "name": .[1]})
+    ]
+  }
+}
