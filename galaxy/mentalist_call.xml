@@ -1,4 +1,4 @@
-<tool id="mentalist_call" name="MentaLiST MLST Analysis" version="0.2.4">
+<tool id="mentalist_call" name="MentaLiST MLST Analysis" version="0.2.4" profile="18.09">
   <requirements>
     <requirement type="package" version="0.2.4">mentalist</requirement>
   </requirements>
