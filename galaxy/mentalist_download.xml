@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<tool id="mentalist_download" name="MentaLiST load databases" tool_type="manage_data" version="0.2.5" profile="18.09">
+<tool id="mentalist_download" name="MentaLiST load databases" tool_type="manage_data" version="0.2.4" profile="18.09">
   <requirements>
-    <requirement type="package" version="0.2.5">mentalist</requirement>
+    <requirement type="package" version="0.2.4">mentalist</requirement>
     <requirement type="package" version="1.6">jq</requirement>
   </requirements>
   <command detect_errors="exit_code"><![CDATA[

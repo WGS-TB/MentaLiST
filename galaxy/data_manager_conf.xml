@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <data_managers>
-  <data_manager tool_file="mentalist_build_db.xml" id="mentalist_build_db" version="0.2.5">
+  <data_manager tool_file="mentalist_build_db.xml" id="mentalist_build_db" version="0.2.4">
     <data_table name="mentalist_databases">
       <output>
         <column name="source_id" />
