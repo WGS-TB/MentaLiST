@@ -27,7 +27,8 @@ RUN micromamba install --yes --name base \
 
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 
-RUN julia -e 'using Pkg; Pkg.add([ "Distributed", "ArgParse", "BioSequences", "JSON", "DataStructures", "JLD", "GZip", "Blosc", "FileIO", "TextWrap", "LightXML", "JuMP", "Gurobi"])'
+RUN julia -e 'using Pkg; Pkg.add([ "Distributed", "ArgParse", "JSON", "DataStructures", "JLD", "GZip", "Blosc", "FileIO", "TextWrap", "LightXML", "JuMP", "Gurobi"])' && \
+    julia -e 'using Pkg; Pkg.add(name="BioSequences", version="1.0")'
 
 RUN git clone https://github.com/WGS-TB/MentaLiST.git && \
     cd /MentaLiST && \
