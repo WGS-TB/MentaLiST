@@ -193,8 +193,12 @@ function read_alleles(fastafile, ids)
   record = FASTA.Record()
   while !eof(reader)
     read!(reader, record)
+    dnastr = convert(String, FASTA.sequence(String, record))
+    if occursin("X", dnastr)
+      dnastr = replace(dnastr, "X" => "N")
+    end
     if in(idx, ids)
-      alleles[idx] = FASTA.sequence(record)
+      alleles[idx] = DNASequence(dnastr)
     end
     idx += 1
   end
@@ -208,7 +212,11 @@ function find_allele(fastafile, wanted_seq)
   record = FASTA.Record()
   while !eof(reader)
     read!(reader, record)
-    if FASTA.sequence(fastafile) == wanted_seq
+    dnastr = convert(String, FASTA.sequence(String, record))
+    if occursin("X", dnastr)
+      dnastr = replace(dnastr, "X" => "N")
+    end
+    if DNASequence(dnastr) == wanted_seq
       return idx
     end
     idx += 1
@@ -528,7 +536,11 @@ function count_kmers_in_fasta_file(::Type{DNAKmer{k}}, fasta_file, kmer_count) w
 	record = FASTA.Record()
   while !eof(reader)
       read!(reader, record)
-      for (pos, kmer) in each(DNAKmer{k}, FASTA.sequence(record))
+      dnastr = convert(String, FASTA.sequence(String, record))
+      if occursin("X", dnastr)
+        dnastr = replace(dnastr, "X" => "N")
+      end
+      for (pos, kmer) in each(DNAKmer{k}, DNASequence(dnastr))
         kmer_count[canonical(kmer)] += 1
       end
     end
