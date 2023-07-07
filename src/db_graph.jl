@@ -76,7 +76,11 @@ end
       read!(reader, record)
       seq_id = FASTA.identifier(record)
       seen = Set{DNAKmer}()
-      for (pos, kmer) in each(DNAKmer{k}, FASTA.sequence(record))
+      dnastr = convert(String, FASTA.sequence(String, record))
+      if occursin("X", dnastr)
+        dnastr = replace(dnastr, "X" => "N")
+      end
+      for (pos, kmer) in each(DNAKmer{k}, DNASequence(dnastr))
         can_kmer = canonical(kmer)
         if !in(can_kmer, seen)
           push!(kmer_class[can_kmer], allele_idx)
