@@ -2,7 +2,7 @@
 #!/bin/bash
 # -*- mode: julia -*-
 #=
-exec julia --color=yes --startup-file=no "${BASH_SOURCE[0]}" "$@"
+exec julia --color=yes --startup-file=no "$0" "$@"
 =#
 using ArgParse
 using Distributed
