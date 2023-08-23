@@ -95,7 +95,7 @@ function download_pubmlst_scheme(target_species, output_dir, overwrite=false)
     locus_name = _get_first_line(locus)
     @info("Downloading locus $locus_name ...")
     locus_url = content(locus["url"][1])
-    filepath = _download_to_folder(locus_url, output_dir)
+    filepath = _download_to_folder(locus_url, output_dir, overwrite, locus_name * ".fasta")
     push!(loci_files, filepath)
   end
   @info("Finished downloading.")

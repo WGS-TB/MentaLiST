@@ -32,7 +32,7 @@ RUN julia -e 'using Pkg; Pkg.add([ "Distributed", "ArgParse", "JSON", "DataStruc
 
 RUN git clone https://github.com/WGS-TB/MentaLiST.git && \
     cd /MentaLiST && \
-    git checkout docker && \
+    git checkout docker -- && \
     chmod +x /MentaLiST/src/mentalist 
 
 WORKDIR /data
