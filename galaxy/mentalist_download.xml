@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+<tool id="mentalist_download" name="MentaLiST load databases" tool_type="manage_data" version="0.2.4" profile="18.09">
+  <requirements>
+    <requirement type="package" version="0.2.4">mentalist</requirement>
+    <requirement type="package" version="1.6">jq</requirement>
+  </requirements>
+  <command detect_errors="exit_code"><![CDATA[
+    #import re
+    #if $mode_selection.mode == 'list'
+      jq -nf '$__tool_directory__/tsvs_to_galaxy'
+      --rawfile pb <(mentalist list_pubmlst)
+      --rawfile cg <(mentalist list_cgmlst)
+      --rawfile eb '$__tool_directory__/enterobase.tsv'
+      > '$output'
+    #else
+      mentalist '$mode_selection.mode' -k '$mode_selection.kmer_size'
+      #if $mode_selection.mode == 'build_db'
+        #set unique_id = "${mode_select.scheme}_${ re.sub('\W', '_', str(mode_select.database_name)) }_${mode_selection.kmer_size}"
+        #set name = "${mode_selection.database_name} k=${mode_selection.kmer_size} (${mode_selection.scheme})"
+        --db '${unique_id}.jld'
+        #if $mode_selection.profile
+          --profile '$mode_selection.profile'
+        #end if
+        --fasta_files
+        #for fasta in $mode_selection.input_fastas
+          '$fasta'
+        #end for
+      #else
+        #set scheme_name = next(record for record in $__app__.tool_data_tables['mlst_db_sources'].get_fields() if str( record[1] ) == str( $mode_selection.database_name ) and str( record[2] ) == str( $mode_selection.scheme ))[-1]
+        #set unique_id = "${mode_select.database_name}_${mode_select.scheme}_${mode_selection.kmer_size}"
+        #set name = "${scheme_name} k=${mode_selection.kmer_size} (${mode_selection.database_name}" + (" $mode_selection.type" if $mode_selection.type else "") + ")"
+        #if $mode_selection.type
+          #set unique_id = $unique_id + "_${mode_selection.type}"
+          -t '$mode_selection.type'
+        #end if
+        --db '${unique_id}.jld'
+        -o '${unique_id}'
+      #end if
+      && echo '{"data_tables":{"mentalist_databases":[{"value":"${unique_id}","name":"$name","path":"${unique_id}.jld"}]}}' > '$output'
+    #end if
+  ]]></command>
+  <macros>
+    <xml name="common_params">
+      <param name="kmer_size" type="integer" value="31" min="1" max="32" label="Kmer size" help="Kmer size" />
+    </xml>
+    <xml name="download_params">
+      <param name="scheme" type="select" multiple="false" label="Select scheme to download">
+        <options from_data_table="mlst_db_sources" />
+        <column name="name" index="3" />
+        <column name="value" index="2" />
+        <filter type="param_value" ref="database_name" column="1" />
+      </param>
+    </xml>
+  </macros>
+  <inputs>
+    <conditional name="mode_selection">
+      <param name="mode" type="select" label="Select a source to load data">
+        <option value="build_db">Build database from FASTA</option>
+        <option value="list">Fetch available schemas</option>
+        <option value="download_pubmlst">Download from PubMLST</option>
+        <option value="download_cgmlst">Download from cgMLST</option>
+        <option value="download_enterobase">Download from Enterobase</option>
+      </param>
+      <when value="build_db">
+        <expand macro="common_params" />
+        <param name="scheme" type="hidden" value="custom" />
+        <param name="database_name" type="text" label="Database Name" help="Database Name" />
+        <param name="input_fastas" type="data_collection" collection_type="list" format="fasta" multiple="true" label="Input Fasta" help="Fasta input files" />
+        <param name="profile" type="data" format="tsv" optional="true" label="Profile" help="Profile for known genotypes" />
+      </when>
+      <when value="list"></when>
+      <when value="download_pubmlst">
+        <expand macro="common_params" />
+        <param name="database_name" type="hidden" value="pubMLST" />
+        <expand macro="download_params" />
+      </when>
+      <when value="download_cgmlst">
+        <expand macro="common_params" />
+        <param name="database_name" type="hidden" value="cgMLST" />
+        <expand macro="download_params" />
+      </when>
+      <when value="download_enterobase">
+        <expand macro="common_params" />
+        <param name="database_name" type="hidden" value="Enterobase" />
+        <expand macro="download_params" />
+        <param name="type" type="select" multiple="false" label="Select scheme type (cgMLST or wgMLST)">
+          <option value="cg">Core Genome (cgMLST)</option>
+          <option value="wg">Whole Genome (wgMLST)</option>
+        </param>
+      </when>
+    </conditional>
+  </inputs>
+  <outputs>
+    <data name="output" format="data_manager_json" />
+  </outputs>
+  <citations>
+    <citation type="doi">10.1101/172858</citation>
+    <citation type="doi">10.1099/mgen.0.000146</citation>
+  </citations>
+</tool>

@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<data_managers>
+  <data_manager tool_file="mentalist_build_db.xml" id="mentalist_build_db" version="0.2.4">
+    <data_table name="mentalist_databases">
+      <output>
+        <column name="source_id" />
+        <column name="value" />
+        <column name="name" />
+        <column name="path" output_ref="out_file">
+          <move type="directory" relativize_symlinks="True">
+            <target base="${GALAXY_DATA_MANAGER_DATA_PATH}">mentalist_databases/${value}</target>
+          </move>
+          <value_translation>${GALAXY_DATA_MANAGER_DATA_PATH}/mentalist_databases/${value}/${path}</value_translation>
+          <value_translation type="function">abspath</value_translation>
+        </column>
+      </output>
+    </data_table>
+  </data_manager>
+  <data_manager tool_file="mentalist_download.xml" id="mentalist_download" version="0.2.5">
+    <data_table name="mlst_db_sources">
+      <output>
+        <column name="source_id" />
+        <column name="source" />
+        <column name="id" />
+        <column name="name" />
+      </output>
+    </data_table>
+  </data_manager>
+</data_managers>

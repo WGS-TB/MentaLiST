@@ -1,6 +1,6 @@
-<tool id="mentalist_call" name="MentaLiST MLST Analysis" version="0.2.2">
+<tool id="mentalist_call" name="MentaLiST MLST Analysis" version="0.2.4" profile="18.09">
   <requirements>
-    <requirement type="package" version="0.2.2">mentalist</requirement>
+    <requirement type="package" version="0.2.5">mentalist</requirement>
   </requirements>
   <edam_operations>
     <edam_operation>operation_3840</edam_operation>
@@ -36,7 +36,7 @@
     </conditional>
     <param name="kmer_db" type="select">
       <options from_data_table="mentalist_databases">
-	<validator type="no_options" message="No MentaLiST databases are available" />
+	    <validator type="no_options" message="No MentaLiST databases are available" />
       </options>
     </param>
     <param name="mutation_threshold" type="integer" label="Mutation threshold"
@@ -54,7 +54,6 @@
   </inputs>
   <outputs>
     <data name="output_file" format="tabular" />
-    <data name="coverage_file" format="tabular" />
   </outputs>
   <help><![CDATA[
   ]]></help>
